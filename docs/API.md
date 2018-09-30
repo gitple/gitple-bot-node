@@ -1,17 +1,17 @@
 ## Table of Contents
 
   - [Class: BotManager](#botmanager)
-    - [new BotManager(config)](#new-botmangerconfig)
+    - [new BotManager(config)](#new-botmanagerconfig)
     - [botManager.addBot(bot)](#botmanageraddbotbot)
     - [botManager.removeBot(bot)](#botmanagerremovebotbot)
-    - [botManager.on(command, callback])](#botmanageroncommand-callback)
+    - [botManager.on(command[, callback])](#botmanageroncommand-callback)
   - [Class: Bot](#bot)
     - [new Bot(botManager, config)](#new-botbotmanager-config)
     - [bot.finalize()](#botfinalize)
-    - [bot.sendMessage(message, [callback])](#botsendmessage-callback)
-    - [bot.sendCommand(command, [callback])](#botsendcommand-callback)
-    - [bot.sendKeyInEvent([callback])](#bot-sendkeyineventcallback)
-    - [bot.on(command, callback])](#botcommand-callback)
+    - [bot.sendMessage(message[, callback])](#botsendmessage-callback)
+    - [bot.sendCommand(command[, callback])](#botsendcommand-callback)
+    - [bot.sendKeyInEvent([callback])](#botsendkeyineventcallback)
+    - [bot.on(command, callback)](#botoncommand-callback)
 
 ### BotManager
 Exposed by `require('gitple-bot')`.
@@ -45,7 +45,7 @@ Bot manager keep tracking the given bot instance. You don't need to call it expl
 Bot manager stop tracking the given bot instance. You don't need to call it explicitly since it is called from bot.finalize().
 
 
-#### botManager.on(command, callback)
+#### botManager.on(command[, callback])
 
   - `command` _(String)_ 'start' or 'end' command
   - `callback` _(Function)_
@@ -72,8 +72,9 @@ botManager.on('end', (bot, done) => {
 ### Bot
 Exposed by `require('gitple-bot')`.
 
-#### new Bot(config)
+#### new Bot(botManager, config)
 
+  - `botManager` _(Object)_  the instance of BotManager
   - `config` _(Object)_  the bot configuration given by bot manager's 'start' event.
     - `id` _(String)_  the unique identifier fot this bot config
     - `context` _(Object)_  the context of this bot is bound. see below down example.
@@ -143,7 +144,7 @@ botManager.on('end', (bot, done) => {
 });
 ```
 
-#### bot.sendMessage(message, [callback])
+#### bot.sendMessage(message[, callback])
   - `message` _(Object|String)_ message to be sent to the assigned user. It can be string or json object. For more details, see [message format](/README.md#messssage-format).
   - `callback` _(Function)_ called after this async job is done.
 
@@ -153,7 +154,7 @@ botManager.on('end', (bot, done) => {
   myBot.sendMessage('Hello World');
 ```
 
-#### bot.sendCommand(command, [callback])
+#### bot.sendCommand(command[, callback])
   - `message` _(String)_  possible command are either 'botEnd' or 'transferToAgent'.
   - `callback` _(Function)_ called after this async job is done.
 
