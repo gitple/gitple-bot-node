@@ -8,10 +8,10 @@
   - [Class: Bot](#bot)
     - [new Bot(botManager, config)](#new-botbotmanager-config)
     - [bot.finalize()](#botfinalize)
-    - [bot.sendMessage(message[, callback])](#botsendmessage-callback)
-    - [bot.sendCommand(command[, callback])](#botsendcommand-callback)
+    - [bot.sendMessage(message[, callback])](#botsendmessagemessage-callback)
+    - [bot.sendCommand(command[, callback])](#botsendcommandcommand-callback)
     - [bot.sendKeyInEvent([callback])](#botsendkeyineventcallback)
-    - [bot.on(command, callback)](#botoncommand-callback)
+    - [bot.on(event, callback)](#botonevent-callback)
 
 ### BotManager
 Exposed by `require('gitple-bot')`.
@@ -171,6 +171,17 @@ Key in event is sent to the assigned user. Depending on chat client, the key-in 
 ```js
   let myBot = new gitple.Bot(botMgr, botConfig);
   myBot.sendKeyInEvent();
+```
+
+#### bot.on(event, callback)
+  - `event` _(String)_ 'message' on user input
+  - `callback` _(Function)_ called after this async job is done.
+
+```js
+  let myBot = new gitple.Bot(botMgr, botConfig);
+  myBot.on('message', (message) => {
+    myBot.sendMessage(myMessage); // echo back
+  });
 ```
 
 License
