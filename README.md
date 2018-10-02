@@ -55,7 +55,7 @@ botMgr.on('end', (bot, done) => {
 
 This is more complex scenario. User can select a botton for bot command, otherwise user input is echo back. 
 
-Note that message format for UI components is here : [message format](#message_format)
+Note that message format for UI components is here : [message format](#message-format)
 
 ```js
 botMgr.on('start', (botConfig, cb) => {
