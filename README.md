@@ -92,6 +92,10 @@ botMgr.on('start', (botConfig, cb) => {
 
 Please see the documentation [here](docs/API.md).
 
+## Example
+
+Please see the full example [here](example.js).
+
 ## Messssage format
 
 - plain text messages(markdown-aware) or json format
