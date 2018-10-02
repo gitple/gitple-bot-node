@@ -9,7 +9,7 @@ Step 2) Get secret access token at [Workspace Settings](https://workspace.gitple
 
 Note that `Pro` pricing plan is required.
 
-Step 3) Request to add your bot registered to Gitple. Use live chat at gitple.io or use email: support@gitple.io
+Step 3) Request to add your bot registered to Gitple. Use live chat at gitple.io or use email: support@gitple.com
 
 Note that `Pro` pricing plan is required.
 
