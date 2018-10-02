@@ -96,7 +96,7 @@ Please see the documentation [here](docs/API.md).
 
 Please see the full example [here](example.js).
 
-## Messssage format
+## Message format
 
 - plain text messages(markdown-aware) or json format
 
