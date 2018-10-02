@@ -113,7 +113,7 @@ Please see the full example [here](example.js).
     {
       t: text;
       l: {              // link
-        d: {string}     // 타이틀 또는 설명
+        d: {string}     // title or description
         u: {url};       // url
         m: {mime type}; // type image/png, text/json ...
       };
