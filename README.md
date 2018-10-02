@@ -15,6 +15,8 @@ Note that `Pro` pricing plan is required.
 
 `config.json` file to be filled after above steps.
 
+Note that config.json is delivered via email in Step 3)
+
 ```
 {
   "SP_ID": 1,                              
