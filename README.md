@@ -9,7 +9,7 @@ Step 2) Get secret access token at [Workspace Settings](https://workspace.gitple
 
 Note that `Pro` pricing plan is required.
 
-Step 3) Request to add your bot registered to Gitple. Use "Contact Us" menu at [workspace](https://workspace.gitple.io) or use email: support@gitple.io
+Step 3) Request to add your bot registered to Gitple. Use "Contact Us" menu at [workspace](https://workspace.gitple.io) or use email: support@gitple.com
 
 Note that `Pro` pricing plan is required.
 
@@ -55,7 +55,7 @@ botMgr.on('end', (bot, done) => {
 
 This is more complex scenario. User can select a botton for bot command, otherwise user input is echo back. 
 
-Note that message format for UI components is here : [message format](#message_format)
+Note that message format for UI components is here : [message format](#message-format)
 
 ```js
 botMgr.on('start', (botConfig, cb) => {
@@ -92,7 +92,11 @@ botMgr.on('start', (botConfig, cb) => {
 
 Please see the documentation [here](docs/API.md).
 
-## Messssage format
+## Example
+
+Please see the full example [here](example.js).
+
+## Message format
 
 - plain text messages(markdown-aware) or json format
 
