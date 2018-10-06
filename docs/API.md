@@ -19,12 +19,7 @@ Exposed by `require('gitple-bot')`.
 #### new BotManager(config)
 
   - `config` _(Object)_  the bot manger configuration
-    - `SP_ID` _(String|Number)_  service id
-    - `APP_ID` _(String|Number)_  app id
-    - `BOT_ID` _(String|Number)_  the registered bot id
-    - `BOT_GATEWAY_USER` _(String)_ user name
-    - `BOT_GATEWAY_HOST` _(String)_ gateway host name ex. "workspace.gitple.io",
-    - `BOT_GATEWAY_PORT` _(Number)_ gateway port (`8483`),
+    - `BOT_ID` _(Number)_  the registered bot id
     - `BOT_GATEWAY_SECRET`: _(String)_ bot secret
 
 ```js

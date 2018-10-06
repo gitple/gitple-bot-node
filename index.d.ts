@@ -5,9 +5,9 @@ export interface BotManagerConfig {
     APP_ID: number | string;
     BOT_ID: number | string;
     BOT_GATEWAY_USER: string;
-    BOT_GATEWAY_HOST: string;
-    BOT_GATEWAY_PORT: number;
     BOT_GATEWAY_SECRET: string;
+    BOT_GATEWAY_HOST?: string;
+    BOT_GATEWAY_PORT?: number;
 }
 export interface BotConfig {
     id: string;

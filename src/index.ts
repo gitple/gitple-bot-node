@@ -18,9 +18,9 @@ export interface BotManagerConfig {
   APP_ID: number|string;
   BOT_ID: number|string;
   BOT_GATEWAY_USER: string;
-  BOT_GATEWAY_HOST: string;
-  BOT_GATEWAY_PORT: number;
   BOT_GATEWAY_SECRET: string;
+  BOT_GATEWAY_HOST?: string;
+  BOT_GATEWAY_PORT?: number;
 }
 
 export interface BotConfig {
@@ -45,37 +45,59 @@ export class BotManager extends events.EventEmitter {
 
   constructor(config: BotManagerConfig) {
     super();
+
+    const self = this;
+    const username = config.BOT_GATEWAY_USER ? `${config.BOT_GATEWAY_USER}` : `${config.BOT_ID}`;
+
+    const botSecret = config.BOT_GATEWAY_SECRET;
+    const segments = botSecret && botSecret.split('.');
+    const payload = segments && segments[1] && new Buffer(segments[1], 'base64').toString();
+    const payloadInfo = payload && payload.split(':');
+    const SP_ID = config.SP_ID || (payloadInfo && payloadInfo[2]);
+    const APP_ID = config.APP_ID || (payloadInfo && payloadInfo[3]);
+
     this.config = config;
 
     // connect mqtt
     this.client = mqtt.connect({
       protocol: 'wss', // over websocket
-      hostname: config.BOT_GATEWAY_HOST,
-      port: config.BOT_GATEWAY_PORT,
-      clientId: `bot:${config.BOT_GATEWAY_USER}-${uuid()}`, //unique id accross chatbot instances
+      hostname: config.BOT_GATEWAY_HOST || 'workspace.gitple.io',
+      port: config.BOT_GATEWAY_PORT || 8483,
       clean: true,
-      username: config.BOT_GATEWAY_USER, // any string
+      clientId: `chatbot:${username}-${uuid()}`, //unique id accross chatbot instances
+      username: `${username}`, // any string
       password: config.BOT_GATEWAY_SECRET,
+      connectTimeout: 60 * 1000
     });
     this.client.on('connect', function (/*options*/) {
-      this.emit('connect');
-      //console.log('[MQTT CLIENT] connected');
+      // console.log('[MQTT CLIENT] connect');
+      self.emit('connect');
     });
-    this.client.on('error', function (err: Error) {
-      this.emit('error', err);
-      //console.log('[MQTT CLIENT]error', err);
-    });
-    this.client.on('end', function () {
-      //console.log('[MQTT CLIENT] end');
+    this.client.on('reconnect', function () {
+      // console.log('[MQTT CLIENT] reconnect');
+      self.emit('reconnect');
     });
     this.client.on('close', function () {
-      //console.log('[MQTT CLIENT] close');
+      // console.log('[MQTT CLIENT] close');
+      self.emit('disconnect');
     });
+    // this.client.on('offline', function () {
+    //   // console.log('[MQTT CLIENT] offline');
+    //   // self.emit('offline');
+    // });
+    this.client.on('error', function (err) {
+      // console.log('[MQTT CLIENT] error', err && err.toString());
+      self.emit('error', err && err.toString());
+    });
+    // this.client.on('end', function (x) {
+    //   // console.log('[MQTT CLIENT] end', x);
+    //   self.emit('end');
+    // });
 
     // subscribe topics
     this.client.subscribe([
-      `s/${config.SP_ID}/a/${config.APP_ID}/t/+/req/#`, // bot mgr request
-      `s/${config.SP_ID}/a/${config.APP_ID}/u/+/r/+/res/#`, // bot command response
+      `s/${SP_ID}/a/${APP_ID}/t/+/req/#`, // bot mgr request
+      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`, // bot command response
     ]);
 
     // receive mqtt messages
@@ -86,13 +108,13 @@ export class BotManager extends events.EventEmitter {
       let parsedObj;
       let message;
 
-      if (topic.indexOf(`s/${config.SP_ID}/a/${config.APP_ID}/`) !== 0) {
+      if (topic.indexOf(`s/${SP_ID}/a/${APP_ID}/`) !== 0) {
         console.error(`'[SKIP], invalid topic: ${topic}`, payload);
         return;
       }
 
       // chatbot manager: process request such as start and end
-      // BOT_MANAGER_REQ_TOPIC = `s/${config.SP_ID}/a/${config.APP_ID}/t/+/req/#`
+      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/#`
       if (splitedTopic.length >= 7 &&
         splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
         try {
@@ -119,14 +141,14 @@ export class BotManager extends events.EventEmitter {
         let resPubTopic = message.params.resPub;
         let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
 
-        console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
+        // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
         switch (message.method) {
           case 'start':
             if (Number(message.params._context.bot) !== config.BOT_ID) {
               return;
             }
 
-            console.log('Start new chatbot instance', topic, message.params);
+            // console.log('Start new chatbot instance', topic, message.params);
 
             let botConfig: BotConfig = {
               id: instanceId,
@@ -140,31 +162,31 @@ export class BotManager extends events.EventEmitter {
               user: message.params.user,
             };
 
-            this.emit('start', botConfig, (err?: Error|string) => {
+            self.emit('start', botConfig, (err?: Error|string) => {
               if (resPubTopic) {
                 if (err) {
-                  this.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                  self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
                 } else {
-                  this.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                  self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
                 }
               }
             });
             return;
 
           case 'end':
-            if (Number(message.params._context.bot) !== this.config.BOT_ID) {
+            if (Number(message.params._context.bot) !== config.BOT_ID) {
               return;
             }
 
-            console.log('End a chatbot instance', topic, message.params);
+            // console.log('End a chatbot instance', topic, message.params);
 
-            let bot = this.botInstances[instanceId];
-            this.emit('emit', bot, (err?: Error|string) => {
+            let bot = self.botInstances[instanceId];
+            self.emit('end', bot, (err?: Error|string) => {
               if (resPubTopic) {
                 if (err) {
-                  this.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                  self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
                 } else {
-                  this.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                  self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
                 }
               }
             });
@@ -172,15 +194,15 @@ export class BotManager extends events.EventEmitter {
 
           default:
             console.error('Unknown command', message.method);
-            this.emit('error', 'unknown command', message.method);
+            self.emit('error', 'unknown command', message.method);
             if (resPubTopic) {
-              this.client.publish(resPubTopic, jsonrpc.error(message.id, jsonrpc.JsonRpcError.methodNotFound()).toString());
+              self.client.publish(resPubTopic, jsonrpc.error(message.id, jsonrpc.JsonRpcError.methodNotFound()).toString());
             }
             return;
         }
 
       // chatbot instance: process response
-      // BOT_INSTANCE_RES_TOPIC = `s/${this.config.SP_ID}/a/${this.config.APP_ID}/u/+/r/+/res/#`
+      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`
       } else if (splitedTopic.length >= 9 &&
         splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
 
@@ -194,14 +216,14 @@ export class BotManager extends events.EventEmitter {
 
         //console.log(`[JSONRPC RESPONSE] gitple --> chatbot : ${topic}`);
         if (parsedObj.type === 'success') {
-          console.log('Sucess response', message);
+          // console.log('Sucess response', message);
         } else { // 'error'
           console.error('Error response', message);
         }
         return;
 
       // chatbot instance: messages from user
-      // BOT_INSTANCE_MSG_TOPIC = `s/${this.config.SP_ID}/a/${this.config.APP_ID}/u/+/r/+/u/+`
+      // BOT_INSTANCE_MSG_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/u/+`
       } else if (splitedTopic.length >= 9 &&
         splitedTopic[4] === 'u' && splitedTopic[6] === 'r' &&  splitedTopic[8] === 'u') {
         //console.log(`[MESSAGE] gitple --> chatbot : ${topic}`);
@@ -211,11 +233,13 @@ export class BotManager extends events.EventEmitter {
         if (parsedObj) {
           let roomId = splitedTopic[7]; // room id in the topic
           let sessionId = parsedObj._sid;
-          if (parsedObj.e) { console.log(' <Event>'); }
+          if (parsedObj.e) {
+            // console.log(' <Event>');
+          }
           if (parsedObj.m) {
             //console.log('<Message text, html or component>', parsedObj.m);
             let instanceId = `bot:${roomId}:${sessionId}`;
-            let bot = this.botInstances[instanceId];
+            let bot = self.botInstances[instanceId];
             if (bot) {
               bot.emit('message', parsedObj.m);
             }
@@ -247,6 +271,7 @@ export class Bot extends events.EventEmitter {
   constructor(botManager: BotManager, botConfig: BotConfig) {
     super();
     this.id = botConfig.id;
+    this.config = botConfig;
     this.client = botManager.client;
     this.botManager = botManager;
 
@@ -305,7 +330,7 @@ export class Bot extends events.EventEmitter {
     }
 
     if (rpcData) {
-      console.log(`[JSONRPC REQUEST] chatbot --> gitple : ${cmdPubTopic}`);
+      // console.log(`[JSONRPC REQUEST] chatbot --> gitple : ${cmdPubTopic}`);
       //console.log(rpcData);
       this.client.publish(cmdPubTopic, rpcData, function(err?: Error) {
         return cb && cb(err);

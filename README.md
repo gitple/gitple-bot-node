@@ -19,13 +19,8 @@ Note that config.json is delivered via email in Step 3)
 
 ```
 {
-  "SP_ID": 1,                              
-  "APP_ID": 1,                            
-  "BOT_ID": 1,
-  "BOT_GATEWAY_USER": "user_name",        
-  "BOT_GATEWAY_HOST": "workspace.gitple.io",
-  "BOT_GATEWAY_PORT": 8483,
-  "BOT_GATEWAY_SECRET": "_your_secret_"
+  "BOT_ID": "_your_bot_id_",
+  "BOT_GATEWAY_SECRET": "_your_bot_secret_"
 }
 ```
 
@@ -55,7 +50,7 @@ botMgr.on('end', (bot, done) => {
 }
 ```
 
-This is more complex scenario. User can select a botton for bot command, otherwise user input is echo back. 
+This is more complex scenario. User can select a botton for bot command, otherwise user input is echo back.
 
 Note that message format for UI components is here : [message format](#message-format)
 
@@ -96,7 +91,7 @@ Please see the documentation [here](docs/API.md).
 
 ## Example
 
-Please see the full example [here](example.js).
+Please see the full example [here](example/simple.js).
 
 ## Message format
 

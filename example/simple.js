@@ -1,11 +1,13 @@
 'use strict';
-let gitple = require('./');
+let gitple = require('../');
 
-let botMgrConfig = require('./config.json');
+let botMgrConfig = require('../config.json');
 let botMgr = new gitple.BotManager(botMgrConfig);
 
 // on bot start
 botMgr.on('start', (botConfig, done) => {
+  console.log('[botMgr] start bot. user identifier:', botConfig && botConfig.user.identifier);
+
   let myBot = new gitple.Bot(botMgr, botConfig);
   let myMessage = {
     t: 'Welcome to my bot!',  // title
@@ -24,9 +26,9 @@ botMgr.on('start', (botConfig, done) => {
       myBot.sendCommand('botEnd');          // request to end my bot
     } else if (message === 'TRANSFER BOT') {
       myBot.sendCommand('transferToAgent'); // request to transfer to agent
-    } else {                              
+    } else {
       // After key-in indication for one second, user get echo back message.
-      myMessage.t = 'echo message - ' + message; 
+      myMessage.t = 'echo message - ' + message;
       myBot.sendKeyInEvent();
       setTimeout(() => { myBot.sendMessage(myMessage);  }, 1 * 1000);
     }
@@ -36,11 +38,28 @@ botMgr.on('start', (botConfig, done) => {
 
 // on bot end
 botMgr.on('end', (bot, done) => {
-  bot.finalize();
+  console.log('[botMgr] end bot. user identifier:', bot && bot.config.user.identifier);
+
+  if (bot) {
+    bot.finalize();
+  }
+
   // do something
   return done && done();
 });
 
 botMgr.on('error', (err) => {
   console.error('[botMgr] error', err);
+});
+
+botMgr.on('connect', () => {
+  console.info('[botMgr] connect');
+});
+
+botMgr.on('reconnect', () => {
+  console.info('[botMgr] reconnect');
+});
+
+botMgr.on('disconnect', () => {
+  console.info('[botMgr] disconnect');
 });

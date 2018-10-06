@@ -1,9 +1,4 @@
 {
-  "SP_ID": 1,
-  "APP_ID": 1,
-  "BOT_ID": 1,
-  "BOT_GATEWAY_USER": "_your_user_name_",
-  "BOT_GATEWAY_HOST": "workspace.gitple.io",
-  "BOT_GATEWAY_PORT": 8483,
+  "BOT_ID": "_your_bot_id_",
   "BOT_GATEWAY_SECRET": "_your_bot_secret_"
 }
