@@ -33,6 +33,9 @@ export declare class BotManager extends events.EventEmitter {
     constructor(config: BotManagerConfig);
     addBot(bot: Bot): void;
     removeBot(bot: Bot): void;
+    validateBot(botConfig: BotConfig, cb: (err: Error, result: {
+        valid: boolean;
+    }) => void): void;
 }
 export declare class Bot extends events.EventEmitter {
     config: BotConfig;

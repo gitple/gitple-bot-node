@@ -1,0 +1,9 @@
+{
+  "name": "gitpleBotExample",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "json-fs-store": "^1.0.1"
+  },
+  "license": "UNLICENSED"
+}

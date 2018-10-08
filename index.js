@@ -34,6 +34,9 @@ class BotManager extends events.EventEmitter {
             password: config.BOT_GATEWAY_SECRET,
             connectTimeout: 60 * 1000
         });
+        this.client.once('connect', function () {
+            self.emit('ready');
+        });
         this.client.on('connect', function () {
             // console.log('[MQTT CLIENT] connect');
             self.emit('connect');
@@ -116,7 +119,7 @@ class BotManager extends events.EventEmitter {
                                 cmdPub: cmdPubTopic,
                                 resPub: resPubTopic,
                             },
-                            user: message.params.user,
+                            user: message.params.user
                         };
                         self.emit('start', botConfig, (err) => {
                             if (resPubTopic) {
@@ -135,16 +138,18 @@ class BotManager extends events.EventEmitter {
                         }
                         // console.log('End a chatbot instance', topic, message.params);
                         let bot = self.botInstances[instanceId];
-                        self.emit('end', bot, (err) => {
-                            if (resPubTopic) {
-                                if (err) {
-                                    self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                        if (bot) {
+                            self.emit('end', bot, (err) => {
+                                if (resPubTopic) {
+                                    if (err) {
+                                        self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                                    }
+                                    else {
+                                        self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                                    }
                                 }
-                                else {
-                                    self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
-                                }
-                            }
-                        });
+                            });
+                        }
                         return;
                     default:
                         console.error('Unknown command', message.method);
@@ -215,6 +220,9 @@ class BotManager extends events.EventEmitter {
             delete this.botInstances[bot.id];
         }
     }
+    validateBot(botConfig, cb) {
+        return cb && cb(null, { valid: true });
+    }
 }
 exports.BotManager = BotManager;
 class Bot extends events.EventEmitter {
@@ -225,7 +233,7 @@ class Bot extends events.EventEmitter {
         this.client = botManager.client;
         this.botManager = botManager;
         this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
-        botManager.addBot(this);
+        this.botManager.addBot(this);
     }
     finalize() {
         this.botManager.removeBot(this);

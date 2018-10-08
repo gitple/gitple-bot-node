@@ -70,6 +70,9 @@ export class BotManager extends events.EventEmitter {
       password: config.BOT_GATEWAY_SECRET,
       connectTimeout: 60 * 1000
     });
+    this.client.once('connect', function (/*options*/) {
+      self.emit('ready');
+    });
     this.client.on('connect', function (/*options*/) {
       // console.log('[MQTT CLIENT] connect');
       self.emit('connect');
@@ -160,7 +163,7 @@ export class BotManager extends events.EventEmitter {
                 cmdPub: cmdPubTopic, //a topic where command to send
                 resPub: resPubTopic, //a topic where response to send
               },
-              user: message.params.user,
+              user: message.params.user
             };
 
             self.emit('start', botConfig, (err?: Error|string) => {
@@ -182,15 +185,17 @@ export class BotManager extends events.EventEmitter {
             // console.log('End a chatbot instance', topic, message.params);
 
             let bot = self.botInstances[instanceId];
-            self.emit('end', bot, (err?: Error|string) => {
-              if (resPubTopic) {
-                if (err) {
-                  self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
-                } else {
-                  self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+            if (bot) {
+              self.emit('end', bot, (err?: Error|string) => {
+                if (resPubTopic) {
+                  if (err) {
+                    self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                  } else {
+                    self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                  }
                 }
-              }
-            });
+              });
+            }
             return;
 
           default:
@@ -261,6 +266,9 @@ export class BotManager extends events.EventEmitter {
       delete this.botInstances[bot.id];
     }
   }
+  validateBot(botConfig: BotConfig, cb: (err: Error, result: { valid: boolean }) => void) {
+    return cb && cb(null, { valid: true });
+  }
 }
 
 export class Bot extends events.EventEmitter {
@@ -277,7 +285,7 @@ export class Bot extends events.EventEmitter {
     this.botManager = botManager;
 
     this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
-    botManager.addBot(this);
+    this.botManager.addBot(this);
   }
 
   finalize() {
