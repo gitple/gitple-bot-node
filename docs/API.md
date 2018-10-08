@@ -20,7 +20,8 @@ Exposed by `require('gitple-bot')`.
 
   - `config` _(Object)_  the bot manger configuration
     - `BOT_ID` _(Number)_  the registered bot id
-    - `BOT_GATEWAY_SECRET`: _(String)_ bot secret
+    - `BOT_GATEWAY_SECRET`: _(String)_ bot secret,
+    - `APP_CODE`: _(String)_ app code,
 
 ```js
 const gitple = require('gitple-bot');

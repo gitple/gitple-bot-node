@@ -20,7 +20,8 @@ Note that config.json is delivered via email in Step 3)
 ```
 {
   "BOT_ID": "_your_bot_id_",
-  "BOT_GATEWAY_SECRET": "_your_bot_secret_"
+  "BOT_GATEWAY_SECRET": "_your_bot_secret_",
+  "APP_CODE": "_your_app_code_"
 }
 ```
 

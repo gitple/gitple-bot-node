@@ -21,6 +21,7 @@ export interface BotManagerConfig {
   BOT_GATEWAY_SECRET: string;
   BOT_GATEWAY_HOST?: string;
   BOT_GATEWAY_PORT?: number;
+  APP_CODE?: string;
 }
 
 export interface BotConfig {
