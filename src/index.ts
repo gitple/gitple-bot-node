@@ -62,13 +62,15 @@ export class BotManager extends events.EventEmitter {
     // connect mqtt
     this.client = mqtt.connect({
       protocol: 'wss', // over websocket
-      hostname: config.BOT_GATEWAY_HOST || 'workspace.gitple.io',
-      port: config.BOT_GATEWAY_PORT || 8483,
+      hostname: config.BOT_GATEWAY_HOST || 'mqtt.gitple.io',
+      port: config.BOT_GATEWAY_PORT || 443,
+      path: '/mogi',
       clean: true,
       clientId: `chatbot:${username}-${uuid()}`, //unique id accross chatbot instances
       username: `${username}`, // any string
       password: config.BOT_GATEWAY_SECRET,
-      connectTimeout: 60 * 1000
+      connectTimeout: 60 * 1000, // 60 seconds
+      keepalive: 30 // 30 seconds
     });
     this.client.once('connect', function (/*options*/) {
       self.emit('ready');
