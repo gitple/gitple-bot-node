@@ -1,3 +1,7 @@
+/*
+ * Copyright 2017 Gitple Inc.
+ */
+
 'use strict';
 let gitple = require('../');
 let botMgrConfig = require('../config.json');
