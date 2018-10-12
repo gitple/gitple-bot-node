@@ -1,13 +1,22 @@
 {
-  "name": "gitple-bot-node",
+  "name": "gitple-bot",
   "version": "0.0.1",
-  "private": true,
   "scripts": {
     "start": "node index.js",
     "tsc": "tslint --type-check -p tsconfig.json && tsc",
     "lint": "tslint --type-check -p tsconfig.json",
     "watch": "tsc -w"
   },
+  "keywords": ["gitple", "bot", "chatbot"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitple/gitple-bot-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gitple/gitple-bot-node/issues"
+  },
+  "homepage": "https://github.com/gitple/gitple-bot-node",
+  "author": "Gitple <support@gitple.com> (https://gitple.io)",
   "directories": {
     "test": "test"
   },
