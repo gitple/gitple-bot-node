@@ -29,6 +29,7 @@ export interface BotConfig {
   context: {
     room: string;
     session: string;
+    bot: string;
   };
   topic: {
     msgSub: string;
