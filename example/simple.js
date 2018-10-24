@@ -34,7 +34,23 @@ function handleBotMessage(message) {
   }
 }
 
-function recoveryBot() {
+function storeUpdateBot(myBot) {
+  let storeObject = {
+    id: myBot.id,
+    config: myBot.config,
+    ctime: Date.now()
+  };
+  if (myBot.userData) {
+    storeObject.userData = myBot.userData;
+  }
+  store.add(storeObject, () => {});
+}
+
+function storeRemoveBot(botId) {
+  store.remove(botId, () => {});
+}
+
+function storeRecoveryBot() {
   // to restore bot
   store.list(function(err, storedObjects) {
     storedObjects.forEach((storedObject) => {
@@ -43,7 +59,7 @@ function recoveryBot() {
           if (err || !result) { return; }
 
           if (result.valid) {
-            let myBot = new gitple.Bot(botMgr, storedObject.config);
+            let myBot = new gitple.Bot(botMgr, storedObject.config, storedObject.userData);
             botInstances[myBot.id] = myBot;
 
             if (Date.now() - storedObject.ctime > 1 * 60 * 60 * 1000) { // End bot if it has been more than 1 hour
@@ -62,7 +78,7 @@ function recoveryBot() {
               myBot.on('message', handleBotMessage);
             }
           } else {
-            store.remove(storedObject.id, () => {});
+            storeRemoveBot(storedObject.id);
           }
         });
       }
@@ -77,7 +93,7 @@ botMgr.on('start', (botConfig, done) => {
 
   console.log(`[botMgr] start bot ${myBot.id}. user identifier:`, botConfig && botConfig.user.identifier);
 
-  store.add({ id: myBot.id, config: botConfig, ctime: Date.now() }, () => {});
+  storeUpdateBot(myBot);
 
   // After key-in indication for one second, user get welcom message on a bot startup.
   myBot.sendKeyInEvent();
@@ -106,7 +122,7 @@ botMgr.on('end', (bot, done) => {
 
   if (bot && botInstances[bot.id]) {
     bot.finalize();
-    store.remove(bot.id, () => {});
+    storeRemoveBot(bot.id);
     delete botInstances[bot.id];
   }
 
@@ -132,5 +148,5 @@ botMgr.on('disconnect', () => {
 
 botMgr.on('ready', () => {
   console.info('[botMgr] ready');
-  recoveryBot();
+  storeRecoveryBot();
 });

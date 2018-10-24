@@ -278,13 +278,15 @@ export class Bot extends events.EventEmitter {
   client: any;
   botManager: BotManager;
   id: string;
+  userData: any;
 
-  constructor(botManager: BotManager, botConfig: BotConfig) {
+  constructor(botManager: BotManager, botConfig: BotConfig, userData: any) {
     super();
     this.id = botConfig.id;
     this.config = botConfig;
     this.client = botManager.client;
     this.botManager = botManager;
+    this.userData = userData;
 
     this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
     this.botManager.addBot(this);
