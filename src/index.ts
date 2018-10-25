@@ -35,6 +35,7 @@ export interface BotConfig {
     msgSub: string;
     msgPub: string;
     cmdPub: string;
+    cmdResPub: string;
     resPub: string;
   };
   user: any;
@@ -103,8 +104,8 @@ export class BotManager extends events.EventEmitter {
 
     // subscribe topics
     this.client.subscribe([
-      `s/${SP_ID}/a/${APP_ID}/t/+/req/#`, // bot mgr request
-      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`, // bot command response
+      `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/#`, // bot mgr request
+      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`, // bot command response
     ]);
 
     // receive mqtt messages
@@ -123,7 +124,7 @@ export class BotManager extends events.EventEmitter {
       // chatbot manager: process request such as start and end
       // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/#`
       if (splitedTopic.length >= 7 &&
-        splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
+          splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
         try {
           parsedObj = jsonrpc.parse(payload);
           if (parsedObj.type !== 'request') {
@@ -145,6 +146,7 @@ export class BotManager extends events.EventEmitter {
         let msgSubTopic = message.params.msgSub;
         let msgPubTopic = message.params.msgPub;
         let cmdPubTopic = message.params.cmdPub;
+        let cmdResPubTopic = message.params.cmdResPub;
         let resPubTopic = message.params.resPub;
         let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
 
@@ -164,6 +166,7 @@ export class BotManager extends events.EventEmitter {
                 msgSub: msgSubTopic, //a topic where message to receive
                 msgPub: msgPubTopic, //a topic where message to send
                 cmdPub: cmdPubTopic, //a topic where command to send
+                cmdResPub: cmdResPubTopic, //a topic where command to send
                 resPub: resPubTopic, //a topic where response to send
               },
               user: message.params.user
@@ -211,8 +214,8 @@ export class BotManager extends events.EventEmitter {
         }
 
       // chatbot instance: process response
-      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`
-      } else if (splitedTopic.length >= 9 &&
+      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`
+      } else if (splitedTopic.length >= 11 &&
         splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
 
         try {
@@ -242,14 +245,15 @@ export class BotManager extends events.EventEmitter {
         if (parsedObj) {
           let roomId = splitedTopic[7]; // room id in the topic
           let sessionId = parsedObj._sid;
-          if (parsedObj.e) {
-            // console.log(' <Event>');
-          }
-          if (parsedObj.m) {
-            //console.log('<Message text, html or component>', parsedObj.m);
-            let instanceId = `bot:${roomId}:${sessionId}`;
-            let bot = self.botInstances[instanceId];
-            if (bot) {
+
+          let instanceId = `bot:${roomId}:${sessionId}`;
+          let bot = self.botInstances[instanceId];
+          if (bot) {
+            if (parsedObj.e) {
+              // console.log(' <Event>');
+            }
+            if (parsedObj.m) {
+              //console.log('<Message text, html or component>', parsedObj.m);
               bot.emit('message', parsedObj.m);
             }
           }
@@ -329,17 +333,18 @@ export class Bot extends events.EventEmitter {
     let rpcData;
     let context = this.config.context;
     let cmdPubTopic = this.config.topic.cmdPub;
+    let cmdResPubTopic = this.config.topic.cmdResPub;
 
     if (command === 'botEnd') {
       rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'end', {
         _context: context, // every message should include the saved context
-        resPub: cmdPubTopic.replace(/\/req($|\/.*)/, '/res'), // resonse topic for cmdPubTopic
+        resPub: cmdResPubTopic, // resonse topic for cmdPubTopic
       }).toString();
     } else if (command === 'transferToAgent') {
       rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'transfer', {
         type: 'agent', // transfer to target
         _context: context, // every message should include the saved context
-        resPub: cmdPubTopic.replace(/\/req($|\/.*)/, '/res'), // resonse topic for cmdPubTopic
+        resPub: cmdResPubTopic, // resonse topic for cmdPubTopic
       }).toString();
     }
 

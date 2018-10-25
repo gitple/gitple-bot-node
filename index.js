@@ -65,8 +65,8 @@ class BotManager extends events.EventEmitter {
         // });
         // subscribe topics
         this.client.subscribe([
-            `s/${SP_ID}/a/${APP_ID}/t/+/req/#`,
-            `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`,
+            `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/#`,
+            `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`,
         ]);
         // receive mqtt messages
         this.client.on('message', function (topic, payload) {
@@ -103,6 +103,7 @@ class BotManager extends events.EventEmitter {
                 let msgSubTopic = message.params.msgSub;
                 let msgPubTopic = message.params.msgPub;
                 let cmdPubTopic = message.params.cmdPub;
+                let cmdResPubTopic = message.params.cmdResPub;
                 let resPubTopic = message.params.resPub;
                 let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
                 // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
@@ -119,6 +120,7 @@ class BotManager extends events.EventEmitter {
                                 msgSub: msgSubTopic,
                                 msgPub: msgPubTopic,
                                 cmdPub: cmdPubTopic,
+                                cmdResPub: cmdResPubTopic,
                                 resPub: resPubTopic,
                             },
                             user: message.params.user
@@ -162,9 +164,9 @@ class BotManager extends events.EventEmitter {
                         return;
                 }
                 // chatbot instance: process response
-                // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/#`
+                // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`
             }
-            else if (splitedTopic.length >= 9 &&
+            else if (splitedTopic.length >= 11 &&
                 splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
                 try {
                     parsedObj = jsonrpc.parse(payload);
@@ -195,14 +197,14 @@ class BotManager extends events.EventEmitter {
                 if (parsedObj) {
                     let roomId = splitedTopic[7]; // room id in the topic
                     let sessionId = parsedObj._sid;
-                    if (parsedObj.e) {
-                        // console.log(' <Event>');
-                    }
-                    if (parsedObj.m) {
-                        //console.log('<Message text, html or component>', parsedObj.m);
-                        let instanceId = `bot:${roomId}:${sessionId}`;
-                        let bot = self.botInstances[instanceId];
-                        if (bot) {
+                    let instanceId = `bot:${roomId}:${sessionId}`;
+                    let bot = self.botInstances[instanceId];
+                    if (bot) {
+                        if (parsedObj.e) {
+                            // console.log(' <Event>');
+                        }
+                        if (parsedObj.m) {
+                            //console.log('<Message text, html or component>', parsedObj.m);
                             bot.emit('message', parsedObj.m);
                         }
                     }
@@ -271,17 +273,18 @@ class Bot extends events.EventEmitter {
         let rpcData;
         let context = this.config.context;
         let cmdPubTopic = this.config.topic.cmdPub;
+        let cmdResPubTopic = this.config.topic.cmdResPub;
         if (command === 'botEnd') {
             rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'end', {
                 _context: context,
-                resPub: cmdPubTopic.replace(/\/req($|\/.*)/, '/res'),
+                resPub: cmdResPubTopic,
             }).toString();
         }
         else if (command === 'transferToAgent') {
             rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'transfer', {
                 type: 'agent',
                 _context: context,
-                resPub: cmdPubTopic.replace(/\/req($|\/.*)/, '/res'),
+                resPub: cmdResPubTopic,
             }).toString();
         }
         if (rpcData) {

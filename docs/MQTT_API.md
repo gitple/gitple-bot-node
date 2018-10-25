@@ -44,7 +44,8 @@ example
      msgSub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/u/+",
      msgPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/t/{bot_id}",
      cmdPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/req/t/{bot_id}",
-     resPub: "s/{sp_id}/a/{app_id}/t/{bot_id}/res"
+     cmdResPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/res/t/{bot_id}/i/app",
+     resPub: "s/{sp_id}/a/{app_id}/t/{bot_id}/res/i/app/t/{bot_id}"
    }
  }
 ```
@@ -68,7 +69,7 @@ example
    method: "end",
    params: {
      _context: { ... }
-     resPub: "s/{sp_id}/a/{app_id}/t/{bot_id}/res"
+     resPub: "s/{sp_id}/a/{app_id}/t/{bot_id}/res/i/app/t/{bot_id}"
    }
  }
 ```
@@ -124,7 +125,7 @@ example
    method: "end",
    params: {
      _context: { ... }, // saved at the start command
-     resPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/res"
+     resPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/res/t/{bot_id}/i/app"
    }
  }
 ```
@@ -148,7 +149,7 @@ example
    params: {
      type: 'agent',     // transfer to agent
      _context: { ... }, // saved at the start command
-     resPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/res"
+     resPub: "s/{sp_id}/a/{app_id}/u/{user_id}/r/{room_id}/res/t/{bot_id}/i/app"
    }
  }
 ```
@@ -379,7 +380,7 @@ message: { m: 'hello, 1 two 3', t: 1534424599225, _context: { sp: 1, app: 1, own
 
 ```
 //bot start command from gitple
-{"jsonrpc":"2.0","id":"chatbot-28768308-e46a-490d-8772-cb6d4f54731c","method":"start","params":{"_context":{"sp":1,"app":1,"room":7,"session":104,"bot":"1"},"user":{"id":7,"identifier":"aaaa","role":"endUser","info":{}},"resPub":"s/1/a/1/t/1/res","msgSub":"s/1/a/1/u/7/r/7/u/+","msgPub":"s/1/a/1/u/7/r/7/t/1","cmdPub":"s/1/a/1/u/7/r/7/req/t/1"}}
+{"jsonrpc":"2.0","id":"chatbot-28768308-e46a-490d-8772-cb6d4f54731c","method":"start","params":{"_context":{"sp":1,"app":1,"room":7,"session":104,"bot":"1"},"user":{"id":7,"identifier":"aaaa","role":"endUser","info":{}},"resPub":"s/1/a/1/t/1/res/i/app/t/1","msgSub":"s/1/a/1/u/7/r/7/u/+","msgPub":"s/1/a/1/u/7/r/7/t/1","cmdPub":"s/1/a/1/u/7/r/7/req/t/1","cmdResPub":"s/1/a/1/u/7/r/7/res/t/1/i/app"}}
 
 
 //slide list with images
@@ -402,7 +403,7 @@ message: { m: 'hello, 1 two 3', t: 1534424599225, _context: { sp: 1, app: 1, own
 {"t":1534395306493,"e":{"keyIn":"s"}}
 
 //bot end command from bot
-{"jsonrpc":"2.0","id":"chatbot-1865b69a-39f3-43a6-aa38-c46b4de9940d","method":"end","params":{"_context":{"sp":1,"app":1,"room":7,"session":104,"bot":"1"},"user":null,"resPub":"s/1/a/1/t/1/res"}}
+{"jsonrpc":"2.0","id":"chatbot-1865b69a-39f3-43a6-aa38-c46b4de9940d","method":"end","params":{"_context":{"sp":1,"app":1,"room":7,"session":104,"bot":"1"},"user":null,"resPub":"s/1/a/1/t/1/res/t/1/i/app"}}
 ```
 
 License

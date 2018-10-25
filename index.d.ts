@@ -21,6 +21,7 @@ export interface BotConfig {
         msgSub: string;
         msgPub: string;
         cmdPub: string;
+        cmdResPub: string;
         resPub: string;
     };
     user: any;
