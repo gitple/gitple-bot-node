@@ -106,42 +106,44 @@ class BotManager extends events.EventEmitter {
                 let cmdResPubTopic = message.params.cmdResPub;
                 let resPubTopic = message.params.resPub;
                 let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
+                let bot = self.botInstances[instanceId];
                 // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
                 switch (message.method) {
                     case 'start':
                         if (Number(message.params._context.bot) !== config.BOT_ID) {
                             return;
                         }
-                        // console.log('Start new chatbot instance', topic, message.params);
-                        let botConfig = {
-                            id: instanceId,
-                            context: message.params._context,
-                            topic: {
-                                msgSub: msgSubTopic,
-                                msgPub: msgPubTopic,
-                                cmdPub: cmdPubTopic,
-                                cmdResPub: cmdResPubTopic,
-                                resPub: resPubTopic,
-                            },
-                            user: message.params.user
-                        };
-                        self.emit('start', botConfig, (err) => {
-                            if (resPubTopic) {
-                                if (err) {
-                                    self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                        // console.log('Start new chatbot instance', topic, message.params, bot);
+                        if (!bot) {
+                            let botConfig = {
+                                id: instanceId,
+                                context: message.params._context,
+                                topic: {
+                                    msgSub: msgSubTopic,
+                                    msgPub: msgPubTopic,
+                                    cmdPub: cmdPubTopic,
+                                    cmdResPub: cmdResPubTopic,
+                                    resPub: resPubTopic,
+                                },
+                                user: message.params.user
+                            };
+                            self.emit('start', botConfig, (err) => {
+                                if (resPubTopic) {
+                                    if (err) {
+                                        self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                                    }
+                                    else {
+                                        self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                                    }
                                 }
-                                else {
-                                    self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
-                                }
-                            }
-                        });
+                            });
+                        }
                         return;
                     case 'end':
                         if (Number(message.params._context.bot) !== config.BOT_ID) {
                             return;
                         }
                         // console.log('End a chatbot instance', topic, message.params);
-                        let bot = self.botInstances[instanceId];
                         if (bot) {
                             self.emit('end', bot, (err) => {
                                 if (resPubTopic) {
@@ -207,6 +209,9 @@ class BotManager extends events.EventEmitter {
                             //console.log('<Message text, html or component>', parsedObj.m);
                             bot.emit('message', parsedObj.m);
                         }
+                    }
+                    else {
+                        //TODO: start new bot instance
                     }
                 }
             }

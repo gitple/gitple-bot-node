@@ -149,6 +149,7 @@ export class BotManager extends events.EventEmitter {
         let cmdResPubTopic = message.params.cmdResPub;
         let resPubTopic = message.params.resPub;
         let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
+        let bot = self.botInstances[instanceId];
 
         // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
         switch (message.method) {
@@ -157,30 +158,31 @@ export class BotManager extends events.EventEmitter {
               return;
             }
 
-            // console.log('Start new chatbot instance', topic, message.params);
+            // console.log('Start new chatbot instance', topic, message.params, bot);
+            if (!bot) {
+              let botConfig: BotConfig = {
+                id: instanceId,
+                context: message.params._context, //context, saved at the start command, included for every message
+                topic: {
+                  msgSub: msgSubTopic, //a topic where message to receive
+                  msgPub: msgPubTopic, //a topic where message to send
+                  cmdPub: cmdPubTopic, //a topic where command to send
+                  cmdResPub: cmdResPubTopic, //a topic where command to send
+                  resPub: resPubTopic, //a topic where response to send
+                },
+                user: message.params.user
+              };
 
-            let botConfig: BotConfig = {
-              id: instanceId,
-              context: message.params._context, //context, saved at the start command, included for every message
-              topic: {
-                msgSub: msgSubTopic, //a topic where message to receive
-                msgPub: msgPubTopic, //a topic where message to send
-                cmdPub: cmdPubTopic, //a topic where command to send
-                cmdResPub: cmdResPubTopic, //a topic where command to send
-                resPub: resPubTopic, //a topic where response to send
-              },
-              user: message.params.user
-            };
-
-            self.emit('start', botConfig, (err?: Error|string) => {
-              if (resPubTopic) {
-                if (err) {
-                  self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
-                } else {
-                  self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+              self.emit('start', botConfig, (err?: Error|string) => {
+                if (resPubTopic) {
+                  if (err) {
+                    self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
+                  } else {
+                    self.client.publish(resPubTopic, jsonrpc.success(message.id, 'OK').toString());
+                  }
                 }
-              }
-            });
+              });
+            }
             return;
 
           case 'end':
@@ -189,8 +191,6 @@ export class BotManager extends events.EventEmitter {
             }
 
             // console.log('End a chatbot instance', topic, message.params);
-
-            let bot = self.botInstances[instanceId];
             if (bot) {
               self.emit('end', bot, (err?: Error|string) => {
                 if (resPubTopic) {
@@ -256,6 +256,8 @@ export class BotManager extends events.EventEmitter {
               //console.log('<Message text, html or component>', parsedObj.m);
               bot.emit('message', parsedObj.m);
             }
+          } else {
+            //TODO: start new bot instance
           }
         }
       }
