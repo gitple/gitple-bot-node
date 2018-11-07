@@ -47,7 +47,7 @@ export declare class Bot extends events.EventEmitter {
     userData: any;
     constructor(botManager: BotManager, botConfig: BotConfig, userData: any);
     finalize(): void;
-    sendMessage(mqttMessage: any, cb?: (err: Error) => void): void;
+    sendMessage(mqttMessage: any, option?: any, cb?: (err: Error) => void): void;
     sendKeyInEvent(cb?: (err?: Error) => void): void;
     sendCommand(command: 'botEnd' | 'transferToAgent', cb?: (err?: Error) => void): void;
 }

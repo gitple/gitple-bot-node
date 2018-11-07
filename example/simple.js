@@ -10,12 +10,21 @@ let store = require('json-fs-store')();
 let botMgr = new gitple.BotManager(botMgrConfig);
 let botInstances = {};
 
-function handleBotMessage(message) {
+function handleBotMessage(inputMessage, option) {
   let myBot = this;
+  let resCommand = option && option.c;
 
-  if (message === 'END BOT') {
+  if (resCommand !== undefined && resCommand !== null) {
+    inputMessage = resCommand;
+  }
+
+  if (inputMessage === undefined || inputMessage === null) {
+    return;
+  }
+
+  if (inputMessage === 'END BOT') {
     myBot.sendCommand('botEnd');          // request to end my bot
-  } else if (message === 'TRANSFER BOT') {
+  } else if (inputMessage === 'TRANSFER BOT') {
     myBot.sendCommand('transferToAgent'); // request to transfer to agent
   } else {
     // After key-in indication for one second, user get echo back message.
@@ -23,14 +32,14 @@ function handleBotMessage(message) {
 
     let messageObject = [
       {
-        t: 'echo message - ' + message,  // title
+        t: 'echo message - ' + inputMessage,  // title
         a: [                      // buttons
-          { p: 'button', t: 'End talk!', c: { e: 'END BOT' } },
-          { p: 'button', t: 'Human please', c: { e: 'TRANSFER BOT' } }
+          { p: 'button', t: 'End talk!', c: 'END BOT' },
+          { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
         ]
       }
     ];
-    setTimeout(() => { myBot.sendMessage(messageObject);  }, 1 * 1000);
+    setTimeout(() => { myBot.sendMessage(messageObject); }, 1 * 1000);
   }
 }
 
@@ -103,8 +112,8 @@ botMgr.on('start', (botConfig, done) => {
       {
         t: 'Welcome to my bot!',  // title
         a: [                      // buttons
-          { p: 'button', t: 'End talk!', c: { e: 'END BOT' } },
-          { p: 'button', t: 'Human please', c: { e: 'TRANSFER BOT' } }
+          { p: 'button', t: 'End talk!', c: 'END BOT' },
+          { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
         ]
       }
     ];
