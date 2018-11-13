@@ -6,12 +6,40 @@
 let mqtt = require('mqtt');
 const jsonrpc = require('jsonrpc-lite');
 let uuid = require('uuid');
+let _ = require('lodash');
+let jsonFsStore = require('json-fs-store')();
+
+const ONE_MIN_IN_MS = 60 * 1000; // 1min
+const BOT_TIMEOUT = 10 * 60 * 1000; // 10min
+const BOT_TTL = 20 * 60 * 1000; // 20min
 
 import events = require('events');
 
 process.on('uncaughtException', function (err: Error) {
   console.error('[uncaughtException]', err);
 });
+
+export interface Store {
+  add(key: string, obj: Object, cb?: (err: Error) => void);
+  remove(key: string, cb?: (err: Error) => void);
+  list(cb: (err: Error, storedList: string[]) => void);
+}
+
+export class JsonFsStore implements Store {
+  add(key: string, obj: any, cb?: (err: Error) => void) {
+    if (!cb) { cb = _.noop; }
+    obj.id = key;
+    jsonFsStore.add(obj, cb);
+  }
+  remove(key: string, cb?: (err: Error) => void) {
+    if (!cb) { cb = _.noop; }
+    jsonFsStore.remove(key, cb);
+  }
+  list(cb: (err: Error, storedList: string[]) => void) {
+    if (!cb) { cb = _.noop; }
+    jsonFsStore.list(cb);
+  }
+}
 
 export interface BotManagerConfig {
   SP_ID: number|string;
@@ -44,9 +72,10 @@ export interface BotConfig {
 export class BotManager extends events.EventEmitter {
   config: BotManagerConfig;
   client: any;
+  store: Store;
   botInstances: { [key: string]: Bot; } = {}; // bot instances which keeps context and etc
 
-  constructor(config: BotManagerConfig) {
+  constructor(config: BotManagerConfig, store?: Store) {
     super();
 
     const self = this;
@@ -60,6 +89,7 @@ export class BotManager extends events.EventEmitter {
     const APP_ID = config.APP_ID || (payloadInfo && payloadInfo[3]);
 
     this.config = config;
+    this.store = store ? store : new JsonFsStore();
 
     // connect mqtt
     this.client = mqtt.connect({
@@ -93,7 +123,7 @@ export class BotManager extends events.EventEmitter {
     //   // console.log('[MQTT CLIENT] offline');
     //   // self.emit('offline');
     // });
-    this.client.on('error', function (err) {
+    this.client.on('error', function (err: Error) {
       // console.log('[MQTT CLIENT] error', err && err.toString());
       self.emit('error', err && err.toString());
     });
@@ -254,7 +284,7 @@ export class BotManager extends events.EventEmitter {
             }
             if (parsedObj.m) {
               //console.log('<Message text, html or component>', parsedObj.m);
-              bot.emit('message', parsedObj.m);
+              bot.emit('message', parsedObj.m, topic);
             }
           } else {
             //TODO: start new bot instance
@@ -262,6 +292,17 @@ export class BotManager extends events.EventEmitter {
         }
       }
     });
+
+    // botTimeout event for older than 10 min bot
+    setInterval(() => {
+      let now = _.now();
+      _.each(self.botInstances, (bot: Bot) => {
+        if (now - bot.mtime > BOT_TIMEOUT) {
+          console.log(`quit Bot (>10min older) bot:${bot.id}`);
+          self.emit('botTimeout', bot.id);
+        }
+      });
+    }, ONE_MIN_IN_MS);
   }
   addBot(bot: Bot) {
     if (this.botInstances[bot.id]) {
@@ -275,8 +316,65 @@ export class BotManager extends events.EventEmitter {
       delete this.botInstances[bot.id];
     }
   }
+  getBot(bot: string|Bot) {
+    let botId: string;
+    if (_.isString(bot)) {
+      botId = bot as string;
+    } else if (bot) {
+      botId = _.get(bot, 'id');
+    }
+    if (this.botInstances[botId]) {
+      return this.botInstances[botId];
+    } else {
+      return null;
+    }
+  }
+
   validateBot(botConfig: BotConfig, cb: (err: Error, result: { valid: boolean }) => void) {
     return cb && cb(null, { valid: true });
+  }
+
+  recoverBots(createBot: Function, cb?: (err?: Error) => void) {
+    let self = this;
+    if (!self.store) {
+      return cb && cb();
+    }
+    self.store.list((err: Error, storedList: string[]) => {
+      _.each(storedList, (storedObj: any) => {
+        let id: string = storedObj.id;
+        if (!self.getBot(id)) {
+
+          self.validateBot(storedObj.config, (err, result) => {
+            if (err || !result) { return; }
+
+            if (result.valid) {
+              let myBot;
+              if (createBot) {
+                myBot = createBot(self, storedObj.config, storedObj.state);
+              } else {
+                myBot = new Bot(self, storedObj.config, storedObj.state);
+              }
+
+              if (Date.now() - storedObj.mtime > BOT_TTL) { // End bot if it has been more than 1 hour
+                myBot.sendCommand('botEnd'); // request to end my bot
+              } else {
+                console.log(`[botManager] recovery bot ${myBot.id}. user identifier:`, _.get(storedObj, 'config.user.identifier'));
+
+                // After key-in indication for one second, user get sorry message.
+                myBot.sendKeyInEvent();
+
+                setTimeout(() => {
+                  let message = 'I\'m sorry. Please say that again.';
+                  myBot.sendMessage(message);
+                }, 1 * 1000);
+              }
+            }
+          });
+        }
+        console.log('[recoverBots]', id);
+        return;
+      });
+    });
   }
 }
 
@@ -285,18 +383,21 @@ export class Bot extends events.EventEmitter {
   client: any;
   botManager: BotManager;
   id: string;
-  userData: any;
+  state: any;
+  mtime: number;
+  ctime: number;
 
-  constructor(botManager: BotManager, botConfig: BotConfig, userData: any) {
+  constructor(botManager: BotManager, botConfig: BotConfig, state?: any) {
     super();
     this.id = botConfig.id;
     this.config = botConfig;
     this.client = botManager.client;
     this.botManager = botManager;
-    this.userData = userData;
+    this.state = state;
 
     this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
     this.botManager.addBot(this);
+    this.ctime = this.mtime = _.now();
   }
 
   finalize() {
@@ -305,6 +406,8 @@ export class Bot extends events.EventEmitter {
   }
 
   sendMessage(mqttMessage: any, cb?: (err: Error) => void) {
+    this.mtime = _.now();
+
     let topic = this.config.topic.msgPub;
     let message = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
 
@@ -319,6 +422,8 @@ export class Bot extends events.EventEmitter {
   }
 
   sendKeyInEvent(cb?: (err?: Error) => void) {
+    this.mtime = _.now();
+
     let topic = this.config.topic.msgPub;
     let message = { t: Date.now(), e: { keyIn: 's'}, _sid: this.config.context.session };
 
@@ -332,6 +437,8 @@ export class Bot extends events.EventEmitter {
   }
 
   sendCommand(command: 'botEnd'|'transferToAgent', cb?: (err?: Error) => void) {
+    this.mtime = _.now();
+
     let rpcData;
     let context = this.config.context;
     let cmdPubTopic = this.config.topic.cmdPub;
@@ -357,5 +464,36 @@ export class Bot extends events.EventEmitter {
         return cb && cb(err);
       });
     }
+  }
+
+  getState() {
+    return null;
+  }
+
+  saveState() {
+    let self = this;
+    let store = self.botManager.store;
+    self.state = self.getState();
+
+    if (!store) { return; }
+
+    store.add(self.id, {
+      config: self.config,
+      mtime: _.now(),
+      state: self.state,
+    }, (err: Error) => {
+      if (err) { console.error('[Bot.saveState] remove error', err); }
+    });
+  }
+
+  deleteState() {
+    let self = this;
+    let store = self.botManager.store;
+    self.state = null;
+    if (!store) { return; }
+
+    store.remove(self.id, (err: Error) => {
+      if (err) { console.error('[Bot.deleteState] remove error', err); }
+    });
   }
 }

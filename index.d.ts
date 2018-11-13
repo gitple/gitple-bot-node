@@ -1,5 +1,15 @@
 /// <reference types="node" />
 import events = require('events');
+export interface Store {
+    add(key: string, obj: Object, cb?: (err: Error) => void): any;
+    remove(key: string, cb?: (err: Error) => void): any;
+    list(cb: (err: Error, storedList: string[]) => void): any;
+}
+export declare class JsonFsStore implements Store {
+    add(key: string, obj: any, cb?: (err: Error) => void): void;
+    remove(key: string, cb?: (err: Error) => void): void;
+    list(cb: (err: Error, storedList: string[]) => void): void;
+}
 export interface BotManagerConfig {
     SP_ID: number | string;
     APP_ID: number | string;
@@ -29,25 +39,33 @@ export interface BotConfig {
 export declare class BotManager extends events.EventEmitter {
     config: BotManagerConfig;
     client: any;
+    store: Store;
     botInstances: {
         [key: string]: Bot;
     };
-    constructor(config: BotManagerConfig);
+    constructor(config: BotManagerConfig, store?: Store);
     addBot(bot: Bot): void;
     removeBot(bot: Bot): void;
+    getBot(bot: string | Bot): Bot;
     validateBot(botConfig: BotConfig, cb: (err: Error, result: {
         valid: boolean;
     }) => void): void;
+    recoverBots(createBot: Function, cb?: (err?: Error) => void): void;
 }
 export declare class Bot extends events.EventEmitter {
     config: BotConfig;
     client: any;
     botManager: BotManager;
     id: string;
-    userData: any;
-    constructor(botManager: BotManager, botConfig: BotConfig, userData: any);
+    state: any;
+    mtime: number;
+    ctime: number;
+    constructor(botManager: BotManager, botConfig: BotConfig, state?: any);
     finalize(): void;
     sendMessage(mqttMessage: any, cb?: (err: Error) => void): void;
     sendKeyInEvent(cb?: (err?: Error) => void): void;
     sendCommand(command: 'botEnd' | 'transferToAgent', cb?: (err?: Error) => void): void;
+    getState(): any;
+    saveState(): void;
+    deleteState(): void;
 }
