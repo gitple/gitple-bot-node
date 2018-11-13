@@ -341,6 +341,10 @@ class Bot extends events.EventEmitter {
     }
     sendMessage(mqttMessage, option, cb) {
         this.mtime = _.now();
+        if (_.isFunction(option)) {
+            cb = option;
+            option = null;
+        }
         let topic = this.config.topic.msgPub;
         let message = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
         if (option) {

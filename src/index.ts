@@ -403,6 +403,11 @@ export class Bot extends events.EventEmitter {
   sendMessage(mqttMessage: any, option?: any, cb?: (err: Error) => void) {
     this.mtime = _.now();
 
+    if (_.isFunction(option)) {
+      cb = option;
+      option = null;
+    }
+
     let topic = this.config.topic.msgPub;
     let message: any = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
 
