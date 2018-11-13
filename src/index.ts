@@ -279,8 +279,24 @@ export class BotManager extends events.EventEmitter {
           let instanceId = `bot:${roomId}:${sessionId}`;
           let bot = self.botInstances[instanceId];
           if (bot) {
-            //console.log('<Message text, html or component>', parsedObj.m);
-            bot.emit('message', parsedObj.m, parsedObj);
+            let event = parsedObj.e;
+
+            if (event) {
+              bot.emit('event', event);
+            } else {
+              let message = parsedObj.m;
+              let resCommand = parsedObj.c;
+              let isCommand = false;
+
+              if (!_.isUndefined(resCommand) && !_.isNull(resCommand)) {
+                isCommand = true;
+                message = resCommand;
+              }
+
+              //console.log('<Message text, html or component>', parsedObj.m);
+              bot.emit('message', message, { isUserInput: !isCommand });
+            }
+
           } else {
             //TODO: start new bot instance
           }

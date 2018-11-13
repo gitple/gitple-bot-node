@@ -7,7 +7,11 @@
     "lint": "tslint --type-check -p tsconfig.json",
     "watch": "tsc -w"
   },
-  "keywords": ["gitple", "bot", "chatbot"],
+  "keywords": [
+    "gitple",
+    "bot",
+    "chatbot"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/gitple/gitple-bot-node.git"
@@ -37,7 +41,8 @@
     "jsonrpc-lite": "^2.0.1",
     "mqtt": "2.18.3",
     "uuid": "^3.3.2",
-    "lodash": "4.17.10"
+    "lodash": "4.17.10",
+    "json-fs-store": "^1.0.1"
   },
   "license": "UNLICENSED"
 }

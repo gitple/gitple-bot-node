@@ -13,7 +13,7 @@ function handleBotMessage(inputMessage) {
   /* jshint validthis: true */
   let myBot = this;
 
-  if (_.isNul(inputMessage)) {
+  if (_.isNil(inputMessage)) {
     return;
   }
 

@@ -170,13 +170,16 @@ Key in event is sent to the assigned user. Depending on chat client, the key-in 
 ```
 
 #### bot.on(event, callback)
-  - `event` _(String)_ 'message' on user input
+  - `event` _(String)_ 'message' on user input, 'event' on (key-in, ...) event
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
   let myBot = new gitple.Bot(botMgr, botConfig);
-  myBot.on('message', (message) => {
+  myBot.on('message', (message, option) => { // option.isUserInput: boolean - true if message input by user key-in.
     myBot.sendMessage(myMessage); // echo back
+  });
+  myBot.on('event', (event) => {
+
   });
 ```
 
