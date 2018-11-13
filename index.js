@@ -230,13 +230,8 @@ class BotManager extends events.EventEmitter {
                     let instanceId = `bot:${roomId}:${sessionId}`;
                     let bot = self.botInstances[instanceId];
                     if (bot) {
-                        if (parsedObj.e) {
-                            // console.log(' <Event>');
-                        }
-                        if (parsedObj.m) {
-                            //console.log('<Message text, html or component>', parsedObj.m);
-                            bot.emit('message', parsedObj.m, topic);
-                        }
+                        //console.log('<Message text, html or component>', parsedObj.m);
+                        bot.emit('message', parsedObj.m, parsedObj);
                     }
                     else {
                         //TODO: start new bot instance
@@ -344,10 +339,13 @@ class Bot extends events.EventEmitter {
         this.botManager.removeBot(this);
         this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
     }
-    sendMessage(mqttMessage, cb) {
+    sendMessage(mqttMessage, option, cb) {
         this.mtime = _.now();
         let topic = this.config.topic.msgPub;
         let message = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
+        if (option) {
+            message.o = option;
+        }
         if (topic && message) {
             //console.log('gitpleBotSendMessage() message:', topic, message);
             this.client.publish(topic, JSON.stringify(message), function (err) {

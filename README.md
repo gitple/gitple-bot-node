@@ -61,8 +61,8 @@ botMgr.on('start', (botConfig, cb) => {
   let myMessage = {
     t: 'Welcome to my bot!',  // title
     a: [                      // buttons
-      { p: 'button', t: 'End talk!', c: { e: 'END BOT' } },
-      { p: 'button', t: 'Human please', c: { e: 'TRANSFER BOT' } }
+      { p: 'button', t: 'End talk!', c: 'END BOT' },
+      { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
     ]
   };
 
@@ -104,81 +104,77 @@ Please see the full example [here](example/simple.js).
 {
   t: number; // create time in ms
   e: string; // event
-             //   "keyIn": "s" - key-in start
-             //   "read": {number} - message read event with time in ms
+             // 'keyIn': "s" - key-in start
+             // 'read': {number} - message read event with time in ms
+  c: any;    // response command to send to the server
   m: string; // message text or html
   m: [       // object type message
     {
-      t: text;
+      t: string;        // text
       l: {              // link
-        d: {string}     // title or description
+        d: string       // description
         u: {url};       // url
         m: {mime type}; // type image/png, text/json ...
-      };
+      },
+      e: {          // emoticon
+        u: string   // emoticon url
+      },
       s: { // slider
         n: // object max count in one slide
         p: // preview: page count of slide to display
         a: [
           interaction object
         ]
-      };
+      },
       a: [  // interaction object
         {
-          p: "text"; // text template
-          t: string;  // text
-          c: {
-            l: { // link on press
-              a: string; // [not implemented] url to open at new window
-              u: string; // [not implemented] url to call by http get method
-            };
-            e: string; // echo back text
-            r: string; // [not implemented] response without echo back
-          }
+          p: 'text'; // text template
+          t: string; // text
+          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          l: { // link on press
+            a: string; // [not implemented] url to open at new window
+            u: string; // [not implemented] url to call by http get method
+          };
+          c: any; // response command value to send to the server when user selection.
         };
         {
-          p: "image"; // image template
+          p: 'image'; // image template
           u: string;  // image url
           t: string;  // title
           d: string;  // [not implemented] description
-          c: {
-            l: { // link on press
-              a: string; // url to open at new window
-              u: string; // [not implemented] url to call by http get method
-            };
-            e: string; // echo back text
-            r: string; // [not implemented] response without echo back
-          }
+          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          l: { // link on press
+            a: string; // url to open at new window, default: 'u'(image url) value if 'l.a' doesn't exist, not open if 'l.a' is null
+            u: string; // [not implemented] url to call by http get method
+          };
+          c: any; // response command value to send to the server when user selection.
         };
         {
-          p: "button"; // button template
+          p: 'button'; // button template
           t: string;   // button text
-          s: string;   // [not implemented] button style "large or compact". large is full width, compact is text width. default large style
-          c: {
-            l: { // link on press
-              a: string; // [not implemented] url to open at new window
-              u: string; // url to call by http get method
-            };
-            e: string; // echo back text
-            r: string; // [not implemented] response without echo back
-          }
+          s: string;   // [not implemented] button style 'large or compact'. large is full width, compact is text width. default large style
+          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          l: { // link on press
+            a: string; // [not implemented] url to open at new window
+            u: string; // url to call by http get method
+          };
+          c: any; // response command value to send to the server when user selection.
         };
         {
-          p: "list"; // selecting list template
+          p: 'list'; // selecting list template
           t: string; // title text,
           s: string; // [not implemented] subtitle
-          i: url;    // [not implemented] thumbnail image url
-          c: {
-            l: { // link on press
-              a: string; // [not implemented] url to open at new window
-              u: string; // [not implemented] url to call by http get method
-            };
-            e: string; // echo back text
-            r: string; // [not implemented] response without echo back
-          }
+          u: url;    // [not implemented] thumbnail image url
+          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          l: { // link on press
+            a: string; // [not implemented] url to open at new window
+            u: string; // [not implemented] url to call by http get method
+          };
+          c: any; // response command value to send to the server when user selection.
         };
         {
-          p: "form";   // selecting list template
-          f: "select"; // form type
+          p: 'form';   // selecting form template
+          f: 'select'; // form type
           r: boolean;  // required
           t: string;   // label text
           k: string;   // response value
@@ -192,8 +188,8 @@ Please see the full example [here](example/simple.js).
           ];
         };
         {
-          p: "form";   // selecting list template
-          f: "input";  // form type
+          p: 'form';   // selecting form template
+          f: 'input';  // form type
           r: boolean;  // required
           t: string;   // label text
           k: string;   // response key
@@ -201,12 +197,12 @@ Please see the full example [here](example/simple.js).
           d: string;   // [optional] default value
         };
         {
-          p: "form";     // selecting list template
-          f: "textarea"; // form type
+          p: 'form';     // selecting form template
+          f: 'textarea'; // form type
           r: boolean;    // required
           t: string;     // label text
           k: string;     // response key
-          ln: number;    // rows for "textarea"
+          ln: number;    // rows for 'textarea'
           v: string;     // [optional] response value
           d: string;     // [optional] default value
         }
