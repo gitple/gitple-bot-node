@@ -15,10 +15,6 @@ const BOT_TTL = 20 * 60 * 1000; // 20min
 
 import events = require('events');
 
-process.on('uncaughtException', function (err: Error) {
-  console.error('[uncaughtException]', err);
-});
-
 export interface Store {
   add(key: string, obj: Object, cb?: (err: Error) => void);
   remove(key: string, cb?: (err: Error) => void);

@@ -109,3 +109,7 @@ botMgr.on('botTimeout', (botId) => {
     _.delay(() => { bot.finalize(); }, 2000);
   }
 });
+
+process.on('uncaughtException', function (err) {
+  console.error('[uncaughtException]', err);
+});

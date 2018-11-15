@@ -12,9 +12,6 @@ const ONE_MIN_IN_MS = 60 * 1000; // 1min
 const BOT_TIMEOUT = 10 * 60 * 1000; // 10min
 const BOT_TTL = 20 * 60 * 1000; // 20min
 const events = require("events");
-process.on('uncaughtException', function (err) {
-    console.error('[uncaughtException]', err);
-});
 class JsonFsStore {
     add(key, obj, cb) {
         if (!cb) {
