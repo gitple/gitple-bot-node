@@ -7,10 +7,10 @@ let mqtt = require('mqtt');
 const jsonrpc = require('jsonrpc-lite');
 let uuid = require('uuid');
 let _ = require('lodash');
+let async = require('async');
 let jsonFsStore = require('json-fs-store')();
 const ONE_MIN_IN_MS = 60 * 1000; // 1min
 const BOT_TIMEOUT = 10 * 60 * 1000; // 10min
-const BOT_TTL = 20 * 60 * 1000; // 20min
 const events = require("events");
 class JsonFsStore {
     add(key, obj, cb) {
@@ -62,6 +62,7 @@ class BotManager extends events.EventEmitter {
             keepalive: 30 // 30 seconds
         });
         this.client.once('connect', function () {
+            self.recoverBots();
             self.emit('ready');
         });
         this.client.on('connect', function () {
@@ -170,7 +171,7 @@ class BotManager extends events.EventEmitter {
                         }
                         // console.log('End a chatbot instance', topic, message.params);
                         if (bot) {
-                            self.emit('end', bot, (err) => {
+                            self.emit('end', bot.id, (err) => {
                                 if (resPubTopic) {
                                     if (err) {
                                         self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
@@ -254,7 +255,7 @@ class BotManager extends events.EventEmitter {
             let now = _.now();
             _.each(self.botInstances, (bot) => {
                 if (now - bot.mtime > BOT_TIMEOUT) {
-                    console.log(`quit Bot (>10min older) bot:${bot.id}`);
+                    // console.log(`quit Bot (>10min older) bot:${bot.id}`);
                     self.emit('botTimeout', bot.id);
                 }
             });
@@ -290,7 +291,17 @@ class BotManager extends events.EventEmitter {
     validateBot(botConfig, cb) {
         return cb && cb(null, { valid: true });
     }
-    recoverBots(createBot, cb) {
+    saveBots(cb) {
+        async.eachSeries(this.botInstances, (bot, done) => {
+            if (bot) {
+                // console.log(`saveBots bot:${bot.id}`);
+                bot.saveStore(done);
+            }
+        }, (err) => {
+            return cb && cb(err);
+        });
+    }
+    recoverBots(cb) {
         let self = this;
         if (!self.store) {
             return cb && cb();
@@ -304,30 +315,17 @@ class BotManager extends events.EventEmitter {
                             return;
                         }
                         if (result.valid) {
-                            let myBot;
-                            if (createBot) {
-                                myBot = createBot(self, storedObj.config, storedObj.state);
-                            }
-                            else {
-                                myBot = new Bot(self, storedObj.config, storedObj.state);
-                            }
-                            if (Date.now() - storedObj.mtime > BOT_TTL) {
-                                myBot.sendCommand('botEnd'); // request to end my bot
-                            }
-                            else {
-                                console.log(`[botManager] recovery bot ${myBot.id}. user identifier:`, _.get(storedObj, 'config.user.identifier'));
-                                // After key-in indication for one second, user get sorry message.
-                                myBot.sendKeyInEvent();
-                                setTimeout(() => {
-                                    let message = 'I\'m sorry. Please say that again.';
-                                    myBot.sendMessage(message);
-                                }, 1 * 1000);
-                            }
+                            let recoveryObject = {
+                                config: storedObj.config,
+                                state: storedObj.state,
+                                savedTime: storedObj.stime
+                            };
+                            self.emit('recovery', recoveryObject);
                         }
                     });
                 }
-                console.log('[recoverBots]', id);
-                return;
+                // console.log('[recoverBots]', id);
+                return cb && cb();
             });
         });
     }
@@ -341,11 +339,13 @@ class Bot extends events.EventEmitter {
         this.client = botManager.client;
         this.botManager = botManager;
         this.state = state;
+        this.saveStore();
         this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
         this.botManager.addBot(this);
         this.ctime = this.mtime = _.now();
     }
     finalize() {
+        this.deleteStore();
         this.botManager.removeBot(this);
         this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
     }
@@ -410,36 +410,49 @@ class Bot extends events.EventEmitter {
             });
         }
     }
-    getState() {
-        return null;
+    getConfig() {
+        return this.config;
     }
-    saveState() {
+    saveConfig(config, cb) {
+        this.config = config;
+        this.saveStore(cb);
+    }
+    getState() {
+        return this.state;
+    }
+    saveState(state, cb) {
+        this.state = state;
+        this.saveStore(cb);
+    }
+    saveStore(cb) {
         let self = this;
         let store = self.botManager.store;
-        self.state = self.getState();
         if (!store) {
             return;
         }
         store.add(self.id, {
             config: self.config,
-            mtime: _.now(),
+            stime: _.now(),
             state: self.state,
         }, (err) => {
             if (err) {
-                console.error('[Bot.saveState] remove error', err);
+                console.error('[Bot.saveStore] add error', err);
             }
+            else {
+                // console.log('[Bot.saveStore] add', self.id);
+            }
+            return cb && cb(err);
         });
     }
-    deleteState() {
+    deleteStore() {
         let self = this;
         let store = self.botManager.store;
-        self.state = null;
         if (!store) {
             return;
         }
         store.remove(self.id, (err) => {
             if (err) {
-                console.error('[Bot.deleteState] remove error', err);
+                console.error('[Bot.deleteStore] remove error', err);
             }
         });
     }

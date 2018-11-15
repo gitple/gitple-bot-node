@@ -41,14 +41,18 @@ let gitple = require('gitple-bot');
 let botMgrConfig = require('./config.json'); // bot manager config
 let botMgr = new gitple.BotManager(botMgrConfig);
 botMgr.on('start', (botConfig, done) => {
-  let bot = new gitple.Bot(botMgr, botConfig); // start your bot instance
-  bot.sendMessage('Hello World!'); // do your stuff
+  let myBot = new gitple.Bot(botMgr, botConfig); // start your bot instance
+  myBot.sendMessage('Hello World!'); // do your stuff
+  myBot.on('message', (message) => {
+    myBot.sendMessage('echo message - ' + message);
+  });
   return done();
-}
-botMgr.on('end', (bot, done) => {
-  bot.finalize(); // finalize your bot instance
+});
+botMgr.on('end', (botId, done) => {
+  let myBot = botMgr.getBot(botId);
+  myBot.finalize(); // finalize your bot instance
   return done();
-}
+});
 ```
 
 This is more complex scenario. User can select a botton for bot command, otherwise user input is echo back.
@@ -61,8 +65,8 @@ botMgr.on('start', (botConfig, cb) => {
   let myMessage = {
     t: 'Welcome to my bot!',  // title
     a: [                      // buttons
-      { p: 'button', t: 'End talk!', c: 'END BOT' },
-      { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
+      { p: 'button', t: 'End talk!', c: '/quit' },
+      { p: 'button', t: 'Human please', c: '/transfer' }
     ]
   };
 
@@ -71,9 +75,9 @@ botMgr.on('start', (botConfig, cb) => {
   setTimeout(() => { myBot.sendMessage(myMessage); }, 1 * 1000);
 
   myBot.on('message', (message) => {
-    if (message === 'END BOT') {
+    if (message === '/quit') {
       myBot.sendCommand('botEnd');          // request to end my bot
-    } else if (message === 'TRANSFER BOT') {
+    } else if (message === '/transfer') {
       myBot.sendCommand('transferToAgent'); // request to transfer to agent
     } else {
       // After key-in indication for one second, user get echo back message.

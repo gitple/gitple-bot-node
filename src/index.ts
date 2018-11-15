@@ -7,11 +7,11 @@ let mqtt = require('mqtt');
 const jsonrpc = require('jsonrpc-lite');
 let uuid = require('uuid');
 let _ = require('lodash');
+let async = require('async');
 let jsonFsStore = require('json-fs-store')();
 
 const ONE_MIN_IN_MS = 60 * 1000; // 1min
 const BOT_TIMEOUT = 10 * 60 * 1000; // 10min
-const BOT_TTL = 20 * 60 * 1000; // 20min
 
 import events = require('events');
 
@@ -101,6 +101,7 @@ export class BotManager extends events.EventEmitter {
       keepalive: 30 // 30 seconds
     });
     this.client.once('connect', function (/*options*/) {
+      self.recoverBots();
       self.emit('ready');
     });
     this.client.on('connect', function (/*options*/) {
@@ -218,7 +219,7 @@ export class BotManager extends events.EventEmitter {
 
             // console.log('End a chatbot instance', topic, message.params);
             if (bot) {
-              self.emit('end', bot, (err?: Error|string) => {
+              self.emit('end', bot.id, (err?: Error|string) => {
                 if (resPubTopic) {
                   if (err) {
                     self.client.publish(resPubTopic, jsonrpc.error(message.id, new jsonrpc.JsonRpcError(err.toString())).toString());
@@ -268,12 +269,14 @@ export class BotManager extends events.EventEmitter {
         try {
           parsedObj = JSON.parse(payload);
         } catch (e) { /* do nothing */ }
+
         if (parsedObj) {
           let roomId = splitedTopic[7]; // room id in the topic
           let sessionId = parsedObj._sid;
 
           let instanceId = `bot:${roomId}:${sessionId}`;
           let bot = self.botInstances[instanceId];
+
           if (bot) {
             let event = parsedObj.e;
 
@@ -305,7 +308,7 @@ export class BotManager extends events.EventEmitter {
       let now = _.now();
       _.each(self.botInstances, (bot: Bot) => {
         if (now - bot.mtime > BOT_TIMEOUT) {
-          console.log(`quit Bot (>10min older) bot:${bot.id}`);
+          // console.log(`quit Bot (>10min older) bot:${bot.id}`);
           self.emit('botTimeout', bot.id);
         }
       });
@@ -341,11 +344,24 @@ export class BotManager extends events.EventEmitter {
     return cb && cb(null, { valid: true });
   }
 
-  recoverBots(createBot: Function, cb?: (err?: Error) => void) {
+  saveBots(cb?: (err?: Error) => void) {
+    async.eachSeries(this.botInstances, (bot: Bot, done: Function) => {
+      if (bot) {
+        // console.log(`saveBots bot:${bot.id}`);
+        bot.saveStore(done);
+      }
+    },
+    (err: Error) => {
+      return cb && cb(err);
+    });
+  }
+
+  recoverBots(cb?: (err?: Error) => void) {
     let self = this;
     if (!self.store) {
       return cb && cb();
     }
+
     self.store.list((err: Error, storedList: string[]) => {
       _.each(storedList, (storedObj: any) => {
         let id: string = storedObj.id;
@@ -355,31 +371,18 @@ export class BotManager extends events.EventEmitter {
             if (err || !result) { return; }
 
             if (result.valid) {
-              let myBot;
-              if (createBot) {
-                myBot = createBot(self, storedObj.config, storedObj.state);
-              } else {
-                myBot = new Bot(self, storedObj.config, storedObj.state);
-              }
+              let recoveryObject = {
+                config: storedObj.config,
+                state: storedObj.state,
+                savedTime: storedObj.stime
+              };
 
-              if (Date.now() - storedObj.mtime > BOT_TTL) { // End bot if it has been more than 1 hour
-                myBot.sendCommand('botEnd'); // request to end my bot
-              } else {
-                console.log(`[botManager] recovery bot ${myBot.id}. user identifier:`, _.get(storedObj, 'config.user.identifier'));
-
-                // After key-in indication for one second, user get sorry message.
-                myBot.sendKeyInEvent();
-
-                setTimeout(() => {
-                  let message = 'I\'m sorry. Please say that again.';
-                  myBot.sendMessage(message);
-                }, 1 * 1000);
-              }
+              self.emit('recovery', recoveryObject);
             }
           });
         }
-        console.log('[recoverBots]', id);
-        return;
+        // console.log('[recoverBots]', id);
+        return cb && cb();
       });
     });
   }
@@ -401,6 +404,7 @@ export class Bot extends events.EventEmitter {
     this.client = botManager.client;
     this.botManager = botManager;
     this.state = state;
+    this.saveStore();
 
     this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
     this.botManager.addBot(this);
@@ -408,6 +412,7 @@ export class Bot extends events.EventEmitter {
   }
 
   finalize() {
+    this.deleteStore();
     this.botManager.removeBot(this);
     this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
   }
@@ -482,34 +487,52 @@ export class Bot extends events.EventEmitter {
     }
   }
 
-  getState() {
-    return null;
+  getConfig() {
+    return this.config;
   }
 
-  saveState() {
+  saveConfig(config: BotConfig, cb?: any) {
+    this.config = config;
+    this.saveStore(cb);
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  saveState(state: any, cb?: any) {
+    this.state = state;
+    this.saveStore(cb);
+  }
+
+  saveStore(cb?: any) {
     let self = this;
     let store = self.botManager.store;
-    self.state = self.getState();
 
     if (!store) { return; }
 
     store.add(self.id, {
       config: self.config,
-      mtime: _.now(),
+      stime: _.now(),
       state: self.state,
     }, (err: Error) => {
-      if (err) { console.error('[Bot.saveState] remove error', err); }
+      if (err) {
+        console.error('[Bot.saveStore] add error', err);
+      } else {
+        // console.log('[Bot.saveStore] add', self.id);
+      }
+      return cb && cb(err);
     });
   }
 
-  deleteState() {
+  deleteStore() {
     let self = this;
     let store = self.botManager.store;
-    self.state = null;
+
     if (!store) { return; }
 
     store.remove(self.id, (err: Error) => {
-      if (err) { console.error('[Bot.deleteState] remove error', err); }
+      if (err) { console.error('[Bot.deleteStore] remove error', err); }
     });
   }
 }

@@ -17,24 +17,26 @@ function handleBotMessage(inputMessage) {
     return;
   }
 
-  if (inputMessage === 'END BOT') {
+  if (inputMessage === '/quit') {
     myBot.sendCommand('botEnd');          // request to end my bot
-  } else if (inputMessage === 'TRANSFER BOT') {
+  } else if (inputMessage === '/transfer') {
     myBot.sendCommand('transferToAgent'); // request to transfer to agent
   } else {
     // After key-in indication for one second, user get echo back message.
     myBot.sendKeyInEvent();
 
-    let messageObject = [
+    let message = [
       {
-        t: 'echo message - ' + inputMessage,  // title
+        t: `echo message - ${inputMessage}`,  // title
         a: [                      // buttons
-          { p: 'button', t: 'End talk!', c: 'END BOT' },
-          { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
+          { p: 'button', t: 'End talk!', c: '/quit' },
+          { p: 'button', t: 'Human please', c: '/transfer' }
         ]
       }
     ];
-    setTimeout(() => { myBot.sendMessage(messageObject); }, 1 * 1000);
+    setTimeout(() => {
+      myBot.sendMessage(message);
+    }, 1 * 1000);
   }
 }
 
@@ -42,9 +44,9 @@ function handleBotMessage(inputMessage) {
 botMgr.on('start', (botConfig, done) => {
   let myBot = new gitple.Bot(botMgr, botConfig);
 
-  console.log(`[botMgr] start bot ${myBot.id}. user identifier:`, botConfig && botConfig.user.identifier);
+  if (!myBot) { return; }
 
-  myBot.saveState();
+  console.log(`[botMgr] start bot ${myBot.id}. user identifier:`, botConfig && botConfig.user.identifier);
 
   myBot.on('message', handleBotMessage);
 
@@ -52,27 +54,57 @@ botMgr.on('start', (botConfig, done) => {
   myBot.sendKeyInEvent();
 
   setTimeout(() => {
-    let messageObject = [
+    let message = [
       {
         t: 'Welcome to my bot!',  // title
         a: [                      // buttons
-          { p: 'button', t: 'End talk!', c: 'END BOT' },
-          { p: 'button', t: 'Human please', c: 'TRANSFER BOT' }
+          { p: 'button', t: 'End talk!', c: '/quit' },
+          { p: 'button', t: 'Human please', c: '/transfer' }
         ]
       }
     ];
-    myBot.sendMessage(messageObject);
+    myBot.sendMessage(message);
   }, 1 * 1000);
 
   return done && done();
 });
 
-// on bot end
-botMgr.on('end', (bot, done) => {
-  console.log(`[botMgr] end bot  ${bot && bot.id}. user identifier:`, bot && bot.config.user.identifier);
+// on bot recovery from stored info
+botMgr.on('recovery', (botRecovery, done) => {
+  let botConfig =  botRecovery.config;
+  let myBot = new gitple.Bot(botMgr, botConfig, botRecovery.state);
 
-  if (bot && botMgr.getBot(bot)) {
-    bot.finalize();
+  if (!myBot) { return; }
+
+  console.log(`[botMgr] recovery bot ${myBot.id}. ${botRecovery.savedTime} user identifier:`, _.get(botConfig, 'user.identifier'));
+
+  myBot.on('message', handleBotMessage);
+
+  const BOT_TTL = 5 * 60 * 1000; // 5min
+  let savedTime = botRecovery.savedTime;
+  if (Date.now() - savedTime > BOT_TTL) { // End bot if it has been more than BOT_TTL
+    myBot.sendCommand('botEnd'); // request to end my bot
+  } else {
+    // After key-in indication for one second, user get sorry message.
+    myBot.sendKeyInEvent();
+
+    setTimeout(() => {
+      let message = 'I\'m sorry. Please say that again.';
+      myBot.sendMessage(message);
+    }, 1 * 1000);
+  }
+
+  return done && done();
+});
+
+// on bot end
+botMgr.on('end', (botId, done) => {
+  let myBot = botMgr.getBot(botId);
+
+  console.log(`[botMgr] end bot  ${myBot && myBot.id}. user identifier:`, _.get(myBot && myBot.config, 'user.identifier'));
+
+  if (myBot) {
+    myBot.finalize();
   }
 
   // do something
@@ -97,19 +129,38 @@ botMgr.on('disconnect', () => {
 
 botMgr.on('ready', () => {
   console.info('[botMgr] ready');
-  botMgr.recoverBots();
 });
 
 botMgr.on('botTimeout', (botId) => {
   console.info('[botMgr] botTimeout, finalize it in 2secs', botId);
-  let bot = botMgr.getBot(botId);
+  let myBot = botMgr.getBot(botId);
 
-  if (bot) { // send botEnd command and finalize in 2 secs.
-    bot.sendCommand('botEnd');
-    _.delay(() => { bot.finalize(); }, 2000);
+  if (myBot) { // send botEnd command and finalize in 2 secs.
+    myBot.sendCommand('botEnd');
+
+    _.delay(() => {
+      if (botMgr.getBot(botId)) {
+        bot.finalize();
+      }
+    }, 2000);
   }
 });
 
-process.on('uncaughtException', function (err) {
+process.on('SIGTERM', () => {
+  console.info('SIGTERM');
+
+  botMgr.saveBots(() => {
+    process.exit();
+  });
+});
+process.on('SIGINT', function() {
+  console.info('SIGINT');
+
+  botMgr.saveBots(() => {
+    process.exit();
+  });
+});
+
+process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err);
 });

@@ -50,7 +50,8 @@ export declare class BotManager extends events.EventEmitter {
     validateBot(botConfig: BotConfig, cb: (err: Error, result: {
         valid: boolean;
     }) => void): void;
-    recoverBots(createBot: Function, cb?: (err?: Error) => void): void;
+    saveBots(cb?: (err?: Error) => void): void;
+    recoverBots(cb?: (err?: Error) => void): void;
 }
 export declare class Bot extends events.EventEmitter {
     config: BotConfig;
@@ -65,7 +66,10 @@ export declare class Bot extends events.EventEmitter {
     sendMessage(mqttMessage: any, option?: any, cb?: (err: Error) => void): void;
     sendKeyInEvent(cb?: (err?: Error) => void): void;
     sendCommand(command: 'botEnd' | 'transferToAgent', cb?: (err?: Error) => void): void;
+    getConfig(): BotConfig;
+    saveConfig(config: BotConfig, cb?: any): void;
     getState(): any;
-    saveState(): void;
-    deleteState(): void;
+    saveState(state: any, cb?: any): void;
+    saveStore(cb?: any): void;
+    deleteStore(): void;
 }
