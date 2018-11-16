@@ -151,7 +151,7 @@ botManager.on('end', (bot, done) => {
 ```
 
 #### bot.sendCommand(command[, callback])
-  - `message` _(String)_  possible command are either 'botEnd' or 'transferToAgent'.
+  - `command` _(String)_  possible command are either 'botEnd' or 'transferToAgent'.
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
