@@ -7,7 +7,6 @@ let mqtt = require('mqtt');
 const jsonrpc = require('jsonrpc-lite');
 let uuid = require('uuid');
 let _ = require('lodash');
-let async = require('async');
 let jsonFsStore = require('json-fs-store')();
 
 const ONE_MIN_IN_MS = 60 * 1000; // 1min
@@ -29,7 +28,14 @@ export class JsonFsStore implements Store {
   }
   remove(key: string, cb?: (err: Error) => void) {
     if (!cb) { cb = _.noop; }
-    jsonFsStore.remove(key, cb);
+
+    jsonFsStore.load(key, (err: Error, obj: any) => {
+      if (obj) {
+        jsonFsStore.remove(key, cb);
+      } else {
+        return cb && cb(null);
+      }
+    });
   }
   list(cb: (err: Error, storedList: string[]) => void) {
     if (!cb) { cb = _.noop; }
@@ -101,8 +107,8 @@ export class BotManager extends events.EventEmitter {
       keepalive: 30 // 30 seconds
     });
     this.client.once('connect', function (/*options*/) {
-      self.recoverBots();
       self.emit('ready');
+      self.recoverBots();
     });
     this.client.on('connect', function (/*options*/) {
       // console.log('[MQTT CLIENT] connect');
@@ -303,17 +309,62 @@ export class BotManager extends events.EventEmitter {
       }
     });
 
-    // botTimeout event for older than 10 min bot
+    // timeout event for older than 10 min bot
     setInterval(() => {
       let now = _.now();
       _.each(self.botInstances, (bot: Bot) => {
         if (now - bot.mtime > BOT_TIMEOUT) {
           // console.log(`quit Bot (>10min older) bot:${bot.id}`);
-          self.emit('botTimeout', bot.id);
+          self.emit('timeout', bot.id);
         }
       });
     }, ONE_MIN_IN_MS);
   }
+
+  private removeBotState(id: string) {
+    let self = this;
+    if (!self.store) {
+      return;
+    }
+
+    self.store.remove(id, (err: Error) => {
+      if (err) { console.error('[BotManager.removeStore] remove error', err); }
+    });
+  }
+
+  private recoverBots(cb?: (err?: Error) => void) {
+    let self = this;
+    if (!self.store) {
+      return cb && cb();
+    }
+
+    self.store.list((err: Error, storedList: string[]) => {
+      _.each(storedList, (storedObj: any) => {
+        let id: string = storedObj.id;
+
+        if (!self.getBot(id)) {
+          self.validateBot(storedObj.config, (err, result) => {
+            if (err) { return; }
+
+            if (result && result.valid) {
+              let recoveryObject = {
+                config: storedObj.config,
+                state: storedObj.state,
+                savedTime: storedObj.stime
+              };
+
+              self.emit('recovery', recoveryObject);
+            } else {
+              self.removeBotState(id);
+            }
+          });
+        }
+        // console.log('[recoverBots]', id);
+        return cb && cb();
+      });
+    });
+  }
+
   addBot(bot: Bot) {
     if (this.botInstances[bot.id]) {
       console.error('already added', bot.id);
@@ -326,6 +377,11 @@ export class BotManager extends events.EventEmitter {
       delete this.botInstances[bot.id];
     }
   }
+
+  validateBot(botConfig: BotConfig, cb: (err: Error, result: { valid: boolean }) => void) {
+    return cb && cb(null, { valid: true });
+  }
+
   getBot(bot: string|Bot) {
     let botId: string;
     if (_.isString(bot)) {
@@ -340,51 +396,8 @@ export class BotManager extends events.EventEmitter {
     }
   }
 
-  validateBot(botConfig: BotConfig, cb: (err: Error, result: { valid: boolean }) => void) {
-    return cb && cb(null, { valid: true });
-  }
-
-  saveBots(cb?: (err?: Error) => void) {
-    async.eachSeries(this.botInstances, (bot: Bot, done: Function) => {
-      if (bot) {
-        // console.log(`saveBots bot:${bot.id}`);
-        bot.saveStore(done);
-      }
-    },
-    (err: Error) => {
-      return cb && cb(err);
-    });
-  }
-
-  recoverBots(cb?: (err?: Error) => void) {
-    let self = this;
-    if (!self.store) {
-      return cb && cb();
-    }
-
-    self.store.list((err: Error, storedList: string[]) => {
-      _.each(storedList, (storedObj: any) => {
-        let id: string = storedObj.id;
-        if (!self.getBot(id)) {
-
-          self.validateBot(storedObj.config, (err, result) => {
-            if (err || !result) { return; }
-
-            if (result.valid) {
-              let recoveryObject = {
-                config: storedObj.config,
-                state: storedObj.state,
-                savedTime: storedObj.stime
-              };
-
-              self.emit('recovery', recoveryObject);
-            }
-          });
-        }
-        // console.log('[recoverBots]', id);
-        return cb && cb();
-      });
-    });
+  getAllBots() {
+    return _.toArray(this.botInstances);
   }
 }
 
@@ -404,7 +417,6 @@ export class Bot extends events.EventEmitter {
     this.client = botManager.client;
     this.botManager = botManager;
     this.state = state;
-    this.saveStore();
 
     this.client.subscribe(this.config.topic.msgSub); //suscribe to message topic
     this.botManager.addBot(this);
@@ -412,7 +424,7 @@ export class Bot extends events.EventEmitter {
   }
 
   finalize() {
-    this.deleteStore();
+    this.deleteState();
     this.botManager.removeBot(this);
     this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
   }
@@ -487,25 +499,7 @@ export class Bot extends events.EventEmitter {
     }
   }
 
-  getConfig() {
-    return this.config;
-  }
-
-  saveConfig(config: BotConfig, cb?: any) {
-    this.config = config;
-    this.saveStore(cb);
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  saveState(state: any, cb?: any) {
-    this.state = state;
-    this.saveStore(cb);
-  }
-
-  saveStore(cb?: any) {
+  saveState(cb?: any) {
     let self = this;
     let store = self.botManager.store;
 
@@ -525,14 +519,14 @@ export class Bot extends events.EventEmitter {
     });
   }
 
-  deleteStore() {
+  deleteState() {
     let self = this;
     let store = self.botManager.store;
 
     if (!store) { return; }
 
     store.remove(self.id, (err: Error) => {
-      if (err) { console.error('[Bot.deleteStore] remove error', err); }
+      if (err) { console.error('[Bot.deleteState] remove error', err); }
     });
   }
 }

@@ -4,6 +4,7 @@
 
 'use strict';
 let _ = require('lodash');
+let async = require('async');
 let gitple = require('../');
 let botMgrConfig = require('../config.json');
 
@@ -40,6 +41,17 @@ function handleBotMessage(inputMessage) {
   }
 }
 
+function saveAllBot(cb) {
+  let allBots = botMgr.getAllBots();
+
+  async.eachSeries(allBots, (myBot, done) => {
+    myBot.saveState(done);
+  },
+  (err) => {
+    return cb && cb(err);
+  });
+}
+
 // on bot start
 botMgr.on('start', (botConfig, done) => {
   let myBot = new gitple.Bot(botMgr, botConfig);
@@ -69,8 +81,22 @@ botMgr.on('start', (botConfig, done) => {
   return done && done();
 });
 
+// on bot end
+botMgr.on('end', (botId, done) => {
+  let myBot = botMgr.getBot(botId);
+
+  console.log(`[botMgr] end bot  ${myBot && myBot.id}. user identifier:`, _.get(myBot && myBot.config, 'user.identifier'));
+
+  if (myBot) {
+    myBot.finalize();
+  }
+
+  // do something
+  return done && done();
+});
+
 // on bot recovery from stored info
-botMgr.on('recovery', (botRecovery, done) => {
+botMgr.on('recovery', (botRecovery) => {
   let botConfig =  botRecovery.config;
   let myBot = new gitple.Bot(botMgr, botConfig, botRecovery.state);
 
@@ -84,6 +110,12 @@ botMgr.on('recovery', (botRecovery, done) => {
   let savedTime = botRecovery.savedTime;
   if (Date.now() - savedTime > BOT_TTL) { // End bot if it has been more than BOT_TTL
     myBot.sendCommand('botEnd'); // request to end my bot
+
+    _.delay(() => {
+      if (botMgr.getBot(botId)) {
+        myBot.finalize();
+      }
+    }, 2000);
   } else {
     // After key-in indication for one second, user get sorry message.
     myBot.sendKeyInEvent();
@@ -93,22 +125,25 @@ botMgr.on('recovery', (botRecovery, done) => {
       myBot.sendMessage(message);
     }, 1 * 1000);
   }
-
-  return done && done();
 });
 
-// on bot end
-botMgr.on('end', (botId, done) => {
+botMgr.on('timeout', (botId) => {
+  console.info('[botMgr] timeout, finalize it in 2secs', botId);
   let myBot = botMgr.getBot(botId);
 
-  console.log(`[botMgr] end bot  ${myBot && myBot.id}. user identifier:`, _.get(myBot && myBot.config, 'user.identifier'));
+  if (myBot) { // send botEnd command and finalize in 2 secs.
+    myBot.sendCommand('botEnd');
 
-  if (myBot) {
-    myBot.finalize();
+    _.delay(() => {
+      if (botMgr.getBot(botId)) {
+        myBot.finalize();
+      }
+    }, 2000);
   }
+});
 
-  // do something
-  return done && done();
+botMgr.on('ready', () => {
+  console.info('[botMgr] ready');
 });
 
 botMgr.on('error', (err) => {
@@ -127,36 +162,17 @@ botMgr.on('disconnect', () => {
   console.info('[botMgr] disconnect');
 });
 
-botMgr.on('ready', () => {
-  console.info('[botMgr] ready');
-});
-
-botMgr.on('botTimeout', (botId) => {
-  console.info('[botMgr] botTimeout, finalize it in 2secs', botId);
-  let myBot = botMgr.getBot(botId);
-
-  if (myBot) { // send botEnd command and finalize in 2 secs.
-    myBot.sendCommand('botEnd');
-
-    _.delay(() => {
-      if (botMgr.getBot(botId)) {
-        bot.finalize();
-      }
-    }, 2000);
-  }
-});
-
 process.on('SIGTERM', () => {
   console.info('SIGTERM');
 
-  botMgr.saveBots(() => {
+  saveAllBot(() => {
     process.exit();
   });
 });
 process.on('SIGINT', function() {
   console.info('SIGINT');
 
-  botMgr.saveBots(() => {
+  saveAllBot(() => {
     process.exit();
   });
 });

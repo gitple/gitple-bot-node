@@ -16,12 +16,17 @@
 ### BotManager
 Exposed by `require('gitple-bot')`.
 
-#### new BotManager(config)
+#### new BotManager(config, store)
 
   - `config` _(Object)_  the bot manger configuration
     - `BOT_ID` _(Number)_  the registered bot id
     - `BOT_GATEWAY_SECRET`: _(String)_ bot secret,
     - `APP_CODE`: _(String)_ app code,
+  - `store` _(Object)_ store object to save a bot state data
+    - add(key: string, obj: Object, cb?: (err: Error) => void);
+    - remove(key: string, cb?: (err: Error) => void);
+    - list(cb: (err: Error, storedList: string[]) => void);
+
 
 ```js
 const gitple = require('gitple-bot');
@@ -41,26 +46,32 @@ Bot manager keep tracking the given bot instance. You don't need to call it expl
 Bot manager stop tracking the given bot instance. You don't need to call it explicitly since it is called from bot.finalize().
 
 
-#### botManager.on(command[, callback])
+#### botManager.on(event[, callback])
 
-  - `command` _(String)_ 'start' or 'end' command
+  - `command` _(String)_ 'start', 'recovery' or 'end' command
   - `callback` _(Function)_
-    - 'start' command parameters
+    - 'start' event parameters
       - `botConfig` _(Object)_ a bot configuration to start
       - `done` _(Function)_ You should call it after handling this event. It sends back response to the bot gateway. On error, error reason in string is given.
-    - 'end' command parameters
-      - `bot` _(Object)_ an instance of Bot to end
+    - 'end' event parameters
+      - `botId` _(Object)_ an id of Bot to end
       - `done` _(Function)_ You should call it after handling this event. It sends back response to the bot gateway. On error, error reason in string is given.
-
+    - 'ready' event parameters - it is called when Bot manager is ready
+    - 'recovery' event parameters - it is called after Bot manager is ready if bot is saved
+      - `botRecovery.config` _(Object)_ a saved bot configuration
+      - `botRecovery.state` _(Object)_ a saved bot state data
+      - `botRecovery.savedTime` _(Object)_ time to save a bot
+      - `done` _(Function)_ You should call it after handling this event.
 
 ```js
 botManager.on('start', (botConfig, done) => {
-  let myBot = new gitple.Bot(botMgr, botConfig);
-  myBot.sendMessage('Hello World!')
+  let myBot = new gitple.Bot(botManager, botConfig);
+  myBot.sendMessage('Hello World!');
   return done(); // on success, otherwise: return done('error reason');
 });
-botManager.on('end', (bot, done) => {
-  bot.finalize();
+botManager.on('end', (botId, done) => {
+  let myBot = botManager.getBot(botId);
+  myBot.finalize();
   return done();
 });
 ```
@@ -68,7 +79,7 @@ botManager.on('end', (bot, done) => {
 ### Bot
 Exposed by `require('gitple-bot')`.
 
-#### new Bot(botManager, config)
+#### new Bot(botManager, config, state)
 
   - `botManager` _(Object)_  the instance of BotManager
   - `config` _(Object)_  the bot configuration given by bot manager's 'start' event.
@@ -76,12 +87,14 @@ Exposed by `require('gitple-bot')`.
     - `context` _(Object)_  the context of this bot is bound. see below down example.
     - `user` _(Object)_  the user info of this bot is assigned. see below down example.
     - `topic` _(String)_ the topics of this bot is bound.
+  - `state` _(Object)_  the bot state data used in a bot
+
 
 Note: must be called on a bot being initiated.
 
 ```js
 botManager.on('start', (botConfig, done) => {
-  let myBot = new gitple.Bot(botMgr, botConfig);
+  let myBot = new gitple.Bot(botManager, botConfig);
 }
 ```
 
@@ -146,7 +159,7 @@ botManager.on('end', (bot, done) => {
 
 
 ```js
-  let myBot = new gitple.Bot(botMgr, botConfig);
+  let myBot = new gitple.Bot(botManager, botConfig);
   myBot.sendMessage('Hello World');
 ```
 
@@ -155,7 +168,7 @@ botManager.on('end', (bot, done) => {
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
-  let myBot = new gitple.Bot(botMgr, botConfig);
+  let myBot = new gitple.Bot(botManager, botConfig);
   myBot.sendCommand('botEnd');
 ```
 
@@ -165,7 +178,7 @@ botManager.on('end', (bot, done) => {
 Key in event is sent to the assigned user. Depending on chat client, the key-in animation is shown to the user for a while.
 
 ```js
-  let myBot = new gitple.Bot(botMgr, botConfig);
+  let myBot = new gitple.Bot(botManager, botConfig);
   myBot.sendKeyInEvent();
 ```
 
@@ -174,7 +187,7 @@ Key in event is sent to the assigned user. Depending on chat client, the key-in 
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
-  let myBot = new gitple.Bot(botMgr, botConfig);
+  let myBot = new gitple.Bot(botManager, botConfig);
   myBot.on('message', (message, option) => { // option.isUserInput: boolean - true if message input by user key-in.
     myBot.sendMessage(myMessage); // echo back
   });

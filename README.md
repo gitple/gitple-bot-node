@@ -135,31 +135,23 @@ Please see the full example [here](example/simple.js).
           p: 'text'; // text template
           t: string; // text
           e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
-          l: { // link on press
-            a: string; // [not implemented] url to open at new window
-            u: string; // [not implemented] url to call by http get method
-          };
           c: any; // response command value to send to the server when user selection.
         };
         {
           p: 'image'; // image template
           u: string;  // image url
           t: string;  // title
-          d: string;  // [not implemented] description
           e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
           l: { // link on press
             a: string; // url to open at new window, default: 'u'(image url) value if 'l.a' doesn't exist, not open if 'l.a' is null
-            u: string; // [not implemented] url to call by http get method
           };
           c: any; // response command value to send to the server when user selection.
         };
         {
           p: 'button'; // button template
           t: string;   // button text
-          s: string;   // [not implemented] button style 'large or compact'. large is full width, compact is text width. default large style
           e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
           l: { // link on press
-            a: string; // [not implemented] url to open at new window
             u: string; // url to call by http get method
           };
           c: any; // response command value to send to the server when user selection.
@@ -167,13 +159,7 @@ Please see the full example [here](example/simple.js).
         {
           p: 'list'; // selecting list template
           t: string; // title text,
-          s: string; // [not implemented] subtitle
-          u: url;    // [not implemented] thumbnail image url
           e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
-          l: { // link on press
-            a: string; // [not implemented] url to open at new window
-            u: string; // [not implemented] url to call by http get method
-          };
           c: any; // response command value to send to the server when user selection.
         };
         {
