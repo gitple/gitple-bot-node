@@ -130,10 +130,6 @@ export class BotManager extends events.EventEmitter {
       // console.log('[MQTT CLIENT] error', err && err.toString());
       self.emit('error', err && err.toString());
     });
-    // this.client.on('end', function (x) {
-    //   // console.log('[MQTT CLIENT] end', x);
-    //   self.emit('end');
-    // });
 
     // subscribe topics
     this.client.subscribe([

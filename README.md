@@ -1,6 +1,8 @@
 Gitple bot integration
 ---------------------------
 
+![Chatbot deploy architecture](/docs/chatbot_arch.png)
+
 ## prerequisite
 
 Step 1) Visit workspace.gitple.io and create account.
@@ -96,7 +98,8 @@ Please see the documentation [here](docs/API.md).
 
 ## Example
 
-Please see the full example [here](example/simple.js).
+Please see hello world example [here](example/helloWorld.js).
+Please see the simple example [here](example/simpleBot.js).
 
 ## Message format
 

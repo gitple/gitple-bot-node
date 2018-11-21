@@ -4,17 +4,22 @@
     - [new BotManager(config)](#new-botmanagerconfig)
     - [botManager.addBot(bot)](#botmanageraddbotbot)
     - [botManager.removeBot(bot)](#botmanagerremovebotbot)
+    - [botManager.validateBot(botConfig[, callback])](#botmanagerremovebotbotconfig-callback)
+    - [botManager.getBot(bot)](#botmanagergetbotbot)
+    - [botManager.getAllBots()](#botmanagergetallbotsbot)
     - [botManager.on(command[, callback])](#botmanageroncommand-callback)
   - [Class: Bot](#bot)
-    - [new Bot(botManager, config)](#new-botbotmanager-config)
+    - [new Bot(botManager, config[, state])](#new-botbotmanager-config-state)
     - [bot.finalize()](#botfinalize)
-    - [bot.sendMessage(message[, callback])](#botsendmessagemessage-callback)
+    - [bot.sendMessage(message[, option, callback])](#botsendmessagemessage-option-callback)
     - [bot.sendCommand(command[, callback])](#botsendcommandcommand-callback)
     - [bot.sendKeyInEvent([callback])](#botsendkeyineventcallback)
+    - [bot.saveState()](#botsavestate)
+    - [bot.deleteState()](#botdeletestate)
     - [bot.on(event, callback)](#botonevent-callback)
 
 ### BotManager
-Exposed by `require('gitple-bot')`.
+Exposed by `require(`gitple-bot`)`.
 
 #### new BotManager(config, store)
 
@@ -29,45 +34,67 @@ Exposed by `require('gitple-bot')`.
 
 
 ```js
-const gitple = require('gitple-bot');
+const gitple = require(`gitple-bot`);
 
-const botManager = new gitple.BotManager(require('config.json'));
+const botManager = new gitple.BotManager(require(`config.json`));
 ```
 
 #### botManager.addBot(bot)
   - `bot` _(Object)_ instance of `Bot`
 
-Bot manager keep tracking the given bot instance. You don't need to call it explicitly since it is called from Bot constructor.
+Bot manager keep tracking the given bot instance. You don`t need to call it explicitly since it is called from Bot constructor.
 
 
 #### botManager.removeBot(bot)
   - `bot` _(Object)_ instance of `Bot`
 
-Bot manager stop tracking the given bot instance. You don't need to call it explicitly since it is called from bot.finalize().
+Bot manager stop tracking the given bot instance. You don`t need to call it explicitly since it is called from bot.finalize().
 
+#### botManager.validateBot(botConfig[, callback])
+  - `botConfig` _(Object)_ the bot configuration verified.
+
+Validate the given bot configuration.
+
+#### botManager.getBot(bot)
+  - `bot` _(String)_|_(Object)_ bot id or instance of `Bot`
+
+Get the bot instance which is already initiated and managed. Otherwise, null.
+
+#### botManager.getAllBots()
+Get the all the list of bot instances which is already initiated and managed.
 
 #### botManager.on(event[, callback])
 
-  - `command` _(String)_ 'start', 'recovery' or 'end' command
+  - `event` _(String)_ one of the events listed below at the description of callback function.
   - `callback` _(Function)_
-    - 'start' event parameters
+    - `start` event parameters
       - `botConfig` _(Object)_ a bot configuration to start
       - `done` _(Function)_ You should call it after handling this event. It sends back response to the bot gateway. On error, error reason in string is given.
-    - 'end' event parameters
+    - `end` event parameters
       - `botId` _(Object)_ an id of Bot to end
       - `done` _(Function)_ You should call it after handling this event. It sends back response to the bot gateway. On error, error reason in string is given.
-    - 'ready' event parameters - it is called when Bot manager is ready
-    - 'recovery' event parameters - it is called after Bot manager is ready if bot is saved
-      - `botRecovery.config` _(Object)_ a saved bot configuration
-      - `botRecovery.state` _(Object)_ a saved bot state data
-      - `botRecovery.savedTime` _(Object)_ time to save a bot
-      - `done` _(Function)_ You should call it after handling this event.
+    - `ready` event parameters - it is called when Bot manager is ready
+    - `recovery` event parameters - it is called after Bot manager is ready if bot is saved
+      - recoveryObject _(Object)_ a saved bot info
+        - `config` _(Object)_ a saved bot configuration
+        - `state` _(Object)_ a saved bot state data
+        - `savedTime` _(Object)_ time to save a bot
+    - `timeout` event parameters - it is called after establishing connection to Gitple service.
+      - `botId` _(Object)_ an id of Bot which is timeout
+    - `connect` event parameters - it is called after establishing connection to Gitple service.
+      - none
+    - `reconnect` event parameters - it is called after re-establishing connection to Gitple service.
+      - none
+    - `disconnect` event parameters - it is called after disconnected from Gitple service.
+      - none
+    - `error` event parameters - it is called on connection error to Gitple service.
+      - `err` `Error` error reason
 
 ```js
 botManager.on('start', (botConfig, done) => {
   let myBot = new gitple.Bot(botManager, botConfig);
   myBot.sendMessage('Hello World!');
-  return done(); // on success, otherwise: return done('error reason');
+  return done(); // on success, otherwise: return done(`error reason`);
 });
 botManager.on('end', (botId, done) => {
   let myBot = botManager.getBot(botId);
@@ -79,10 +106,10 @@ botManager.on('end', (botId, done) => {
 ### Bot
 Exposed by `require('gitple-bot')`.
 
-#### new Bot(botManager, config, state)
+#### new Bot(botManager, config[, state])
 
   - `botManager` _(Object)_  the instance of BotManager
-  - `config` _(Object)_  the bot configuration given by bot manager's 'start' event.
+  - `config` _(Object)_  the bot configuration given by bot manager`s `start` event.
     - `id` _(String)_  the unique identifier fot this bot config
     - `context` _(Object)_  the context of this bot is bound. see below down example.
     - `user` _(Object)_  the user info of this bot is assigned. see below down example.
@@ -160,16 +187,16 @@ botManager.on('end', (bot, done) => {
 
 ```js
   let myBot = new gitple.Bot(botManager, botConfig);
-  myBot.sendMessage('Hello World');
+  myBot.sendMessage(`Hello World`);
 ```
 
 #### bot.sendCommand(command[, callback])
-  - `command` _(String)_  possible command are either 'botEnd' or 'transferToAgent'.
+  - `command` _(String)_  possible command are either `botEnd` or `transferToAgent`.
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
   let myBot = new gitple.Bot(botManager, botConfig);
-  myBot.sendCommand('botEnd');
+  myBot.sendCommand(`botEnd`);
 ```
 
 #### bot.sendKeyInEvent([callback]])
@@ -182,8 +209,14 @@ Key in event is sent to the assigned user. Depending on chat client, the key-in 
   myBot.sendKeyInEvent();
 ```
 
+#### bot.saveState()
+  - save the current bot state for later recovery.
+
+#### bot.deleteState()
+  - dlete the saved bot state since it is no longer used.
+
 #### bot.on(event, callback)
-  - `event` _(String)_ 'message' on user input, 'event' on (key-in, ...) event
+  - `event` _(String)_ `message` on user input, `event` on (key-in, ...) event
   - `callback` _(Function)_ called after this async job is done.
 
 ```js

@@ -112,7 +112,7 @@ botMgr.on('recovery', (botRecovery) => {
     myBot.sendCommand('botEnd'); // request to end my bot
 
     _.delay(() => {
-      if (botMgr.getBot(botId)) {
+      if (botMgr.getBot(myBot.id)) {
         myBot.finalize();
       }
     }, 2000);
