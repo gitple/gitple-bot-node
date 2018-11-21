@@ -3,7 +3,7 @@ Gitple bot integration
 
 ![Chatbot deploy architecture](/docs/chatbot_arch.png)
 
-## prerequisite
+## Prerequisite
 
 Step 1) Visit workspace.gitple.io and create account.
 
