@@ -165,16 +165,24 @@ botMgr.on('disconnect', () => {
 process.on('SIGTERM', () => {
   console.info('SIGTERM');
 
-  saveAllBot(() => {
+  try {
+    saveAllBot(() => {
+      process.exit();
+    });
+  } catch(e) {
     process.exit();
-  });
+  }
 });
 process.on('SIGINT', function() {
   console.info('SIGINT');
 
-  saveAllBot(() => {
+  try {
+    saveAllBot(() => {
+      process.exit();
+    });
+  } catch(e) {
     process.exit();
-  });
+  }
 });
 
 process.on('uncaughtException', (err) => {
