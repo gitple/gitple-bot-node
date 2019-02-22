@@ -93,7 +93,7 @@ class BotManager extends events.EventEmitter {
         });
         // subscribe topics
         this.client.subscribe([
-            `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/#`,
+            `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/t/${config.BOT_ID}/#`,
             `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`,
         ]);
         // receive mqtt messages
@@ -107,7 +107,7 @@ class BotManager extends events.EventEmitter {
                 return;
             }
             // chatbot manager: process request such as start and end
-            // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/#`
+            // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${config.BOT_ID}/#`
             if (splitedTopic.length >= 7 &&
                 splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
                 try {
@@ -151,7 +151,6 @@ class BotManager extends events.EventEmitter {
                                     msgPub: msgPubTopic,
                                     cmdPub: cmdPubTopic,
                                     cmdResPub: cmdResPubTopic,
-                                    resPub: resPubTopic,
                                 },
                                 user: message.params.user
                             };

@@ -66,7 +66,6 @@ export interface BotConfig {
     msgPub: string;
     cmdPub: string;
     cmdResPub: string;
-    resPub: string;
   };
   user: any;
 }
@@ -133,7 +132,7 @@ export class BotManager extends events.EventEmitter {
 
     // subscribe topics
     this.client.subscribe([
-      `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/#`, // bot mgr request
+      `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/t/${config.BOT_ID}/#`, // bot mgr request
       `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`, // bot command response
     ]);
 
@@ -151,7 +150,7 @@ export class BotManager extends events.EventEmitter {
       }
 
       // chatbot manager: process request such as start and end
-      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/#`
+      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${config.BOT_ID}/#`
       if (splitedTopic.length >= 7 &&
           splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
         try {
@@ -197,7 +196,6 @@ export class BotManager extends events.EventEmitter {
                   msgPub: msgPubTopic, //a topic where message to send
                   cmdPub: cmdPubTopic, //a topic where command to send
                   cmdResPub: cmdResPubTopic, //a topic where command to send
-                  resPub: resPubTopic, //a topic where response to send
                 },
                 user: message.params.user
               };
