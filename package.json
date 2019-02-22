@@ -1,6 +1,6 @@
 {
   "name": "gitple-bot",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "scripts": {
     "start": "node index.js",
     "tsc": "tslint --type-check -p tsconfig.json && tsc",
@@ -41,7 +41,7 @@
     "jsonrpc-lite": "^2.0.1",
     "mqtt": "2.18.3",
     "uuid": "^3.3.2",
-    "lodash": "4.17.10",
+    "lodash": "4.17.11",
     "async": "2.6.1",
     "json-fs-store": "^1.0.1"
   },
