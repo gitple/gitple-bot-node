@@ -355,6 +355,7 @@ class Bot extends events.EventEmitter {
         this.deleteState();
         this.botManager.removeBot(this);
         this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
+        this.removeAllListeners();
     }
     sendMessage(mqttMessage, option, cb) {
         this.mtime = _.now();
