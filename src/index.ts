@@ -182,7 +182,7 @@ export class BotManager extends events.EventEmitter {
         // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
         switch (message.method) {
           case 'start':
-            if (Number(message.params._context.bot) !== config.BOT_ID) {
+            if (String(message.params._context.bot) !== String(config.BOT_ID)) {
               return;
             }
 
@@ -213,7 +213,7 @@ export class BotManager extends events.EventEmitter {
             return;
 
           case 'end':
-            if (Number(message.params._context.bot) !== config.BOT_ID) {
+            if (String(message.params._context.bot) !== String(config.BOT_ID)) {
               return;
             }
 
