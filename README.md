@@ -123,9 +123,6 @@ Please see the simple example [here](example/simpleBot.js).
         u: {url};       // url
         m: {mime type}; // type image/png, text/json ...
       },
-      e: {          // emoticon
-        u: string   // emoticon url
-      },
       s: { // slider
         n: // object max count in one slide
         p: // preview: page count of slide to display
