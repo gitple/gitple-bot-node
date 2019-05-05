@@ -92,6 +92,13 @@ botMgr.on('start', (botConfig, cb) => {
 });
 ```
 
+## How to add your bot link to FAQ answer.
+
+You can put the following html code into your FAQ answer after replacing your bot id with `_ID_`:
+```
+<div>This is My Bot <br><button class="msg-format-btn" data-cmd='{ "t": "assignBot", "p": { "id": _ID_ } }'> My Bot </button></div>
+```
+
 ## Documentation
 
 Please see the documentation [here](docs/API.md).
@@ -100,6 +107,7 @@ Please see the documentation [here](docs/API.md).
 
 Please see hello world example [here](example/helloWorld.js).
 Please see the simple example [here](example/simpleBot.js).
+Please see the Dialogflow example [here](https://github.com/gitple/gitple-bot-dialogflow-example).
 
 ## Message format
 
