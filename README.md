@@ -105,9 +105,9 @@ Please see the documentation [here](docs/API.md).
 
 ## Example
 
-Please see hello world example [here](example/helloWorld.js).
-Please see the simple example [here](example/simpleBot.js).
-Please see the Dialogflow example [here](https://github.com/gitple/gitple-bot-dialogflow-example).
+- hello world example [here](example/helloWorld.js).
+- the simple example [here](example/simpleBot.js).
+- the Dialogflow example [here](https://github.com/gitple/gitple-bot-dialogflow-example).
 
 ## Message format
 
