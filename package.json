@@ -38,12 +38,12 @@
     "typings": "^2.0.0"
   },
   "dependencies": {
-    "jsonrpc-lite": "^2.0.1",
+    "jsonrpc-lite": "~2.0.1",
     "mqtt": "2.18.3",
     "uuid": "^3.3.2",
     "lodash": "4.17.11",
     "async": "2.6.1",
-    "json-fs-store": "^1.0.1"
+    "json-fs-store": "~1.0.1"
   },
   "license": "UNLICENSED"
 }
