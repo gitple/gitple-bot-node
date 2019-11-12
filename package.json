@@ -1,6 +1,6 @@
 {
   "name": "gitple-bot",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "scripts": {
     "start": "node index.js",
     "tsc": "tslint --type-check -p tsconfig.json && tsc",
