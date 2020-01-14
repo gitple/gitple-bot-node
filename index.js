@@ -357,16 +357,16 @@ class Bot extends events.EventEmitter {
         this.client.unsubscribe(this.config.topic.msgSub); // unsubscribe message
         this.removeAllListeners();
     }
-    sendMessage(mqttMessage, option, cb) {
+    sendMessage(mqttMessage, options, cb) {
         this.mtime = _.now();
-        if (_.isFunction(option)) {
-            cb = option;
-            option = null;
+        if (_.isFunction(options)) {
+            cb = options;
+            options = null;
         }
         let topic = this.config.topic.msgPub;
         let message = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
-        if (option) {
-            message.o = option;
+        if (options) {
+            message.o = options;
         }
         if (topic && message) {
             //console.log('gitpleBotSendMessage() message:', topic, message);
@@ -391,12 +391,16 @@ class Bot extends events.EventEmitter {
             return cb && cb(Error('no message to send'));
         }
     }
-    sendCommand(command, cb) {
+    sendCommand(command, options, cb) {
         this.mtime = _.now();
         let rpcData;
         let context = this.config.context;
         let cmdPubTopic = this.config.topic.cmdPub;
         let cmdResPubTopic = this.config.topic.cmdResPub;
+        if (_.isFunction(options)) {
+            cb = options;
+            options = null;
+        }
         if (command === 'botEnd') {
             rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'end', {
                 _context: context,
@@ -410,12 +414,26 @@ class Bot extends events.EventEmitter {
                 resPub: cmdResPubTopic,
             }).toString();
         }
+        else if (command === 'transferToBot') {
+            let transferToBotParams = options;
+            if (transferToBotParams && !_.isNil(transferToBotParams.id)) {
+                rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'transfer', {
+                    type: 'bot',
+                    _context: context,
+                    resPub: cmdResPubTopic,
+                    targetId: transferToBotParams.id
+                }).toString();
+            }
+        }
         if (rpcData) {
             // console.log(`[JSONRPC REQUEST] chatbot --> gitple : ${cmdPubTopic}`);
             //console.log(rpcData);
             this.client.publish(cmdPubTopic, rpcData, function (err) {
                 return cb && cb(err);
             });
+        }
+        else {
+            return cb && cb(new Error('invalid params'));
         }
     }
     saveState(cb) {

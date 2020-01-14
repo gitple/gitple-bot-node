@@ -11,8 +11,8 @@
   - [Class: Bot](#bot)
     - [new Bot(botManager, config[, state])](#new-botbotmanager-config-state)
     - [bot.finalize()](#botfinalize)
-    - [bot.sendMessage(message[, option, callback])](#botsendmessagemessage-option-callback)
-    - [bot.sendCommand(command[, callback])](#botsendcommandcommand-callback)
+    - [bot.sendMessage(message[, callback])](#botsendmessagemessage-option-callback)
+    - [bot.sendCommand(command[, options, callback])](#botsendcommandcommand-callback)
     - [bot.sendKeyInEvent([callback])](#botsendkeyineventcallback)
     - [bot.saveState()](#botsavestate)
     - [bot.deleteState()](#botdeletestate)
@@ -190,13 +190,16 @@ botManager.on('end', (bot, done) => {
   myBot.sendMessage(`Hello World`);
 ```
 
-#### bot.sendCommand(command[, callback])
-  - `command` _(String)_  possible command are either `botEnd` or `transferToAgent`.
+#### bot.sendCommand(command[, options, callback])
+  - `command` _(String)_ possible command are either `botEnd`, `transferToAgent` or `transferToBot`.
+  - `options` _(Object)_ options for 'transferToBot' command
   - `callback` _(Function)_ called after this async job is done.
 
 ```js
   let myBot = new gitple.Bot(botManager, botConfig);
   myBot.sendCommand(`botEnd`);
+  myBot.sendCommand(`transferToAgent`);
+  myBot.sendCommand(`transferToBot`, { id: });
 ```
 
 #### bot.sendKeyInEvent([callback]])

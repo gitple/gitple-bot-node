@@ -57,9 +57,9 @@ export interface BotManagerConfig {
 export interface BotConfig {
   id: string;
   context: {
-    room: string;
-    session: string;
-    bot: string;
+    room: number;
+    session: number;
+    bot: number|string;
   };
   topic: {
     msgSub: string;
@@ -68,6 +68,10 @@ export interface BotConfig {
     cmdResPub: string;
   };
   user: any;
+}
+
+export interface BotCommandTransferToBotParams {
+  id: number|string; // botId
 }
 
 export class BotManager extends events.EventEmitter {
@@ -424,19 +428,19 @@ export class Bot extends events.EventEmitter {
     this.removeAllListeners();
   }
 
-  sendMessage(mqttMessage: any, option?: any, cb?: (err: Error) => void) {
+  sendMessage(mqttMessage: any, options?: any, cb?: (err: Error) => void) {
     this.mtime = _.now();
 
-    if (_.isFunction(option)) {
-      cb = option;
-      option = null;
+    if (_.isFunction(options)) {
+      cb = options;
+      options = null;
     }
 
     let topic = this.config.topic.msgPub;
     let message: any = { t: Date.now(), m: mqttMessage, _sid: this.config.context.session };
 
-    if (option) {
-      message.o = option;
+    if (options) {
+      message.o = options;
     }
 
     if (topic && message) {
@@ -464,13 +468,18 @@ export class Bot extends events.EventEmitter {
     }
   }
 
-  sendCommand(command: 'botEnd'|'transferToAgent', cb?: (err?: Error) => void) {
+  sendCommand(command: 'botEnd'|'transferToAgent'|'transferToBot', options?: ((err?: Error) => void)|BotCommandTransferToBotParams, cb?: (err?: Error) => void) {
     this.mtime = _.now();
 
     let rpcData;
     let context = this.config.context;
     let cmdPubTopic = this.config.topic.cmdPub;
     let cmdResPubTopic = this.config.topic.cmdResPub;
+
+    if (_.isFunction(options)) {
+      cb = <(err?: Error) => void>options;
+      options = null;
+    }
 
     if (command === 'botEnd') {
       rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'end', {
@@ -483,6 +492,16 @@ export class Bot extends events.EventEmitter {
         _context: context, // every message should include the saved context
         resPub: cmdResPubTopic, // resonse topic for cmdPubTopic
       }).toString();
+    } else if (command === 'transferToBot') {
+      let transferToBotParams: BotCommandTransferToBotParams = <BotCommandTransferToBotParams>options;
+      if (transferToBotParams && !_.isNil(transferToBotParams.id)) {
+        rpcData = jsonrpc.request(`bot-${this.config.id}-${uuid()}`, 'transfer', {
+          type: 'bot', // transfer to target
+          _context: context, // every message should include the saved context
+          resPub: cmdResPubTopic, // resonse topic for cmdPubTopic
+          targetId: transferToBotParams.id
+        }).toString();
+      }
     }
 
     if (rpcData) {
@@ -491,6 +510,8 @@ export class Bot extends events.EventEmitter {
       this.client.publish(cmdPubTopic, rpcData, function(err?: Error) {
         return cb && cb(err);
       });
+    } else {
+      return cb && cb(new Error('invalid params'));
     }
   }
 

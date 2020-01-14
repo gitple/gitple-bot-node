@@ -23,9 +23,9 @@ export interface BotManagerConfig {
 export interface BotConfig {
     id: string;
     context: {
-        room: string;
-        session: string;
-        bot: string;
+        room: number;
+        session: number;
+        bot: number | string;
     };
     topic: {
         msgSub: string;
@@ -34,6 +34,9 @@ export interface BotConfig {
         cmdResPub: string;
     };
     user: any;
+}
+export interface BotCommandTransferToBotParams {
+    id: number | string;
 }
 export declare class BotManager extends events.EventEmitter {
     config: BotManagerConfig;
@@ -63,9 +66,9 @@ export declare class Bot extends events.EventEmitter {
     ctime: number;
     constructor(botManager: BotManager, botConfig: BotConfig, state?: any);
     finalize(): void;
-    sendMessage(mqttMessage: any, option?: any, cb?: (err: Error) => void): void;
+    sendMessage(mqttMessage: any, options?: any, cb?: (err: Error) => void): void;
     sendKeyInEvent(cb?: (err?: Error) => void): void;
-    sendCommand(command: 'botEnd' | 'transferToAgent', cb?: (err?: Error) => void): void;
+    sendCommand(command: 'botEnd' | 'transferToAgent' | 'transferToBot', options?: ((err?: Error) => void) | BotCommandTransferToBotParams, cb?: (err?: Error) => void): void;
     saveState(cb?: any): void;
     deleteState(): void;
 }
