@@ -11,14 +11,10 @@ export declare class JsonFsStore implements Store {
     list(cb: (err: Error, storedList: string[]) => void): void;
 }
 export interface BotManagerConfig {
-    SP_ID: number | string;
-    APP_ID: number | string;
-    BOT_ID: number | string;
-    BOT_GATEWAY_USER: string;
+    APP_CODE: string;
     BOT_GATEWAY_SECRET: string;
     BOT_GATEWAY_HOST?: string;
     BOT_GATEWAY_PORT?: number;
-    APP_CODE?: string;
 }
 export interface BotConfig {
     id: string;

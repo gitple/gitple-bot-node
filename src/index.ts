@@ -44,14 +44,10 @@ export class JsonFsStore implements Store {
 }
 
 export interface BotManagerConfig {
-  SP_ID: number|string;
-  APP_ID: number|string;
-  BOT_ID: number|string;
-  BOT_GATEWAY_USER: string;
+  APP_CODE: string;
   BOT_GATEWAY_SECRET: string;
   BOT_GATEWAY_HOST?: string;
   BOT_GATEWAY_PORT?: number;
-  APP_CODE?: string;
 }
 
 export interface BotConfig {
@@ -84,14 +80,16 @@ export class BotManager extends events.EventEmitter {
     super();
 
     const self = this;
-    const username = config.BOT_GATEWAY_USER ? `${config.BOT_GATEWAY_USER}` : `${config.BOT_ID}`;
 
     const botSecret = config.BOT_GATEWAY_SECRET;
     const segments = botSecret && botSecret.split('.');
     const payload = segments && segments[1] && new Buffer(segments[1], 'base64').toString();
     const payloadInfo = payload && payload.split(':');
-    const SP_ID = config.SP_ID || (payloadInfo && payloadInfo[2]);
-    const APP_ID = config.APP_ID || (payloadInfo && payloadInfo[3]);
+    const SP_ID = payloadInfo && payloadInfo[2];
+    const APP_ID = payloadInfo && payloadInfo[3];
+    const BOT_ID = payloadInfo && payloadInfo[5];
+
+    const username = BOT_ID;
 
     this.config = config;
     this.store = store ? store : new JsonFsStore();
@@ -105,7 +103,7 @@ export class BotManager extends events.EventEmitter {
       clean: true,
       clientId: `chatbot:${username}-${uuid()}`, //unique id accross chatbot instances
       username: `${username}`, // any string
-      password: config.BOT_GATEWAY_SECRET,
+      password: botSecret,
       connectTimeout: 60 * 1000, // 60 seconds
       keepalive: 30 // 30 seconds
     });
@@ -136,8 +134,8 @@ export class BotManager extends events.EventEmitter {
 
     // subscribe topics
     this.client.subscribe([
-      `s/${SP_ID}/a/${APP_ID}/t/${config.BOT_ID}/req/t/${config.BOT_ID}/#`, // bot mgr request
-      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`, // bot command response
+      `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/req/t/${BOT_ID}/#`, // bot mgr request
+      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`, // bot command response
     ]);
 
     // receive mqtt messages
@@ -154,7 +152,7 @@ export class BotManager extends events.EventEmitter {
       }
 
       // chatbot manager: process request such as start and end
-      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${config.BOT_ID}/#`
+      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${BOT_ID}/#`
       if (splitedTopic.length >= 7 &&
           splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
         try {
@@ -186,7 +184,7 @@ export class BotManager extends events.EventEmitter {
         // console.log(`[JSONRPC REQUEST] gitple --> chatbot : ${topic}`);
         switch (message.method) {
           case 'start':
-            if (String(message.params._context.bot) !== String(config.BOT_ID)) {
+            if (String(message.params._context.bot) !== String(BOT_ID)) {
               return;
             }
 
@@ -217,7 +215,7 @@ export class BotManager extends events.EventEmitter {
             return;
 
           case 'end':
-            if (String(message.params._context.bot) !== String(config.BOT_ID)) {
+            if (String(message.params._context.bot) !== String(BOT_ID)) {
               return;
             }
 
@@ -245,7 +243,7 @@ export class BotManager extends events.EventEmitter {
         }
 
       // chatbot instance: process response
-      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${config.BOT_ID}/#`
+      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`
       } else if (splitedTopic.length >= 11 &&
         splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
 
