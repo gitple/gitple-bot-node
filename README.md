@@ -7,17 +7,11 @@ Gitple bot integration
 
 Step 1) Visit workspace.gitple.io and create account.
 
-Step 2) Get secret access token at [Workspace Settings](https://workspace.gitple.io/#/pages/settings/app)
-
-Note that `Pro` pricing plan is required.
-
-Step 3) Request to add your bot registered to Gitple. Use "Contact Us" menu at [workspace](https://workspace.gitple.io) or use email: support@gitple.com
+Step 2) Download `config.json` file at [Workspace Bots Management](https://workspace.gitple.io/#/pages/bots)
 
 Note that `Pro` pricing plan is required.
 
 `config.json` file to be filled after above steps.
-
-Note that config.json is delivered via email in Step 3)
 
 ```
 {
