@@ -52,11 +52,21 @@ function saveAllBot(cb) {
   });
 }
 
+function finalize(cb) {
+  saveAllBot(() => {
+    try {
+      botMgr.finalize(cb);
+    } catch(e) {
+      return cb && cb();
+    }
+  });
+}
+
 // on bot start
 botMgr.on('start', (botConfig, done) => {
   let myBot = new gitple.Bot(botMgr, botConfig);
 
-  if (!myBot) { return; }
+  if (!myBot) { return done(new Error('bot creatation fail')); }
 
   console.log(`[botMgr] start bot ${myBot.id}. user identifier:`, botConfig && botConfig.user.identifier);
 
@@ -166,18 +176,19 @@ process.on('SIGTERM', () => {
   console.info('SIGTERM');
 
   try {
-    saveAllBot(() => {
+    finalize(() => {
       process.exit();
     });
   } catch(e) {
     process.exit();
   }
 });
+
 process.on('SIGINT', function() {
   console.info('SIGINT');
 
   try {
-    saveAllBot(() => {
+    finalize(() => {
       process.exit();
     });
   } catch(e) {

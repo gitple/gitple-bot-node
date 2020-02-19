@@ -1,4 +1,4 @@
-/// <reference types="node" />
+import { Cluster } from './cluster';
 import events = require('events');
 export interface Store {
     add(key: string, obj: Object, cb?: (err: Error) => void): any;
@@ -15,6 +15,7 @@ export interface BotManagerConfig {
     BOT_GATEWAY_SECRET: string;
     BOT_GATEWAY_HOST?: string;
     BOT_GATEWAY_PORT?: number;
+    BOT_CLUSTER_NODE_ID?: number;
 }
 export interface BotConfig {
     id: string;
@@ -41,9 +42,20 @@ export declare class BotManager extends events.EventEmitter {
     botInstances: {
         [key: string]: Bot;
     };
+    cluster: Cluster;
+    clusterSyncPubTopic: string;
+    clusterSyncReqPubTopic: string;
+    clusterElectionPubTopic: string;
+    clusterForwardCommandPubTopic: string;
     constructor(config: BotManagerConfig, store?: Store);
-    private removeBotState(id);
-    private recoverBots(cb?);
+    private handleBotCommand;
+    private mqttPublish;
+    private clusterGetBotCount;
+    private clusterSendData;
+    clusterSendForwardCommand(targetNodeId: string, instanceId: string, command: any): void;
+    private removeBotState;
+    private recoverBots;
+    finalize(cb: Function): void;
     addBot(bot: Bot): void;
     removeBot(bot: Bot): void;
     validateBot(botConfig: BotConfig, cb: (err: Error, result: {
