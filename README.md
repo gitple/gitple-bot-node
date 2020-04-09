@@ -112,18 +112,19 @@ Please see the documentation [here](docs/API.md).
 ```js
 {
   t: number; // create time in ms
-  e: string; // event
-             // 'keyIn': "s" - key-in start
-             // 'read': {number} - message read event with time in ms
+  e: { // event
+    keyIn: 's'|'t'   // "s" - key-in start, "t" - key-in stop
+    read: number // message read event with time in ms
+  };
   c: any;    // response command to send to the server
   m: string; // message text or html
   m: [       // object type message
     {
-      t: string;        // text
-      l: {              // link
-        d: string       // description
-        u: {url};       // url
-        m: {mime type}; // type image/png, text/json ...
+      t: string;         // text
+      l: {               // link
+        u: {url};        // url
+        m: {mime type};  // type image/png, text/json ...
+        n: string        // filename
       },
       s: { // slider
         n: // object max count in one slide
@@ -132,37 +133,38 @@ Please see the documentation [here](docs/API.md).
           interaction object
         ]
       },
-      a: [  // interaction object
+      a: [ // interaction object
         {
           p: 'text'; // text template
           t: string; // text
-          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
-          c: any; // response command value to send to the server when user selection.
+          e: string; // echo back text, use as 't' value if 'e' doesn't exist, no echo back if 'e' is null
+          c: any; // response command value to send to the server when user selection, use as 'e' value if 'c' doesn't exist
         };
         {
           p: 'image'; // image template
           u: string;  // image url
           t: string;  // title
-          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          e: string;  // echo back text, use as 't' value if 'e' doesn't exist, no echo back if 'e' is null
+          c: any; // response command value to send to the server when user selection, use 'e' value if 'c' doesn't exist
           l: { // link on press
-            a: string; // url to open at new window, default: 'u'(image url) value if 'l.a' doesn't exist, not open if 'l.a' is null
+            a: string; // url to open at new window, not open if 'l.a' is null
           };
-          c: any; // response command value to send to the server when user selection.
         };
         {
           p: 'button'; // button template
           t: string;   // button text
-          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
+          e: string; // echo back text, use as 't' value if 'e' doesn't exist, no echo back if 'e' is null
+          c: any; // response command value to send to the server when user selection, use as 'e' value if 'c' doesn't exist
           l: { // link on press
+            a: string; // url to open at new window
             u: string; // url to call by http get method
           };
-          c: any; // response command value to send to the server when user selection.
         };
         {
           p: 'list'; // selecting list template
           t: string; // title text,
-          e: string; // echo back text, echo as t text if 'e' doesn't exist, no echo back if 'e' is null
-          c: any; // response command value to send to the server when user selection.
+          e: string; // echo back text, use as 't' value if 'e' doesn't exist, no echo back if 'e' is null
+          c: any; // response command value to send to the server when user selection, use as 'e' value if 'c' doesn't exist
         };
         {
           p: 'form';   // selecting form template
