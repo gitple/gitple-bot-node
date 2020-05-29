@@ -3,6 +3,19 @@ Gitple bot integration
 
 ![Chatbot deploy architecture](/docs/chatbot_arch.png)
 
+## Bot Cluster for High availability & Load Balancing
+![Chatbot cluster architecture](/docs/chatbot_cluster_arch.png)
+
+* Prerequisite
+  - At least two nodes for high availability & Load Balancing.
+* Health Check
+  - All nodes in the bot cluster check for alive through the health ckeck.
+* Leader Election
+  - Leader nodes are elected through health checks.
+  - The rest of the nodes are worker nodes.
+* Job Manager
+  - The leader node distributes the job to worker nodes.
+
 ## Prerequisite
 
 Step 1) Visit workspace.gitple.io and create account.
