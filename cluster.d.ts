@@ -1,5 +1,5 @@
 export declare type ClusterMessageType = 'sync' | 'syncReq' | 'election';
-declare type ClusterSendCB = (type: ClusterMessageType, data: any, cb?: (err?: Error) => void) => void;
+export declare type ClusterSendCB = (type: ClusterMessageType, data: any, cb?: (err?: Error) => void) => void;
 export interface ClusterElection {
     id: string;
     leaderId: string;
@@ -23,18 +23,21 @@ export declare class Cluster {
     private sync;
     private election;
     private callback;
+    private intervalElectionTimer;
     constructor(nodeId: string, bootTime: number, getJobCount: () => number, send: ClusterSendCB);
-    private reset;
-    private syncGetLeader;
-    private syncGetWorkers;
-    private syncAddInfo;
-    private syncResetLeader;
-    private syncRemoveExpired;
-    private syncRemoveInfo;
-    private syncElectionLeader;
-    private sendSyncReq;
-    private sendLeaderElection;
-    private sendSync;
+    finalize(): void;
+    private start();
+    private reset(isStopTimer?);
+    private syncGetLeader();
+    private syncGetWorkers();
+    private syncAddInfo(nodeInfo);
+    private syncResetLeader();
+    private syncRemoveExpired();
+    private syncRemoveInfo(nodeId);
+    private syncElectionLeader();
+    private sendSyncReq();
+    private sendLeaderElection(leaderId);
+    private sendSync(remove?, meta?);
     sendSyncMeta(meta: any): void;
     removeNode(): void;
     getNodeToAssignJob(): ClusterSyncNode;
@@ -45,4 +48,3 @@ export declare class Cluster {
     connect(): void;
     disconnect(): void;
 }
-export {};

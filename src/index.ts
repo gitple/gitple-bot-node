@@ -80,272 +80,28 @@ interface BotClusterForwardCommand {
 }
 
 export class BotManager extends events.EventEmitter {
-  config: BotManagerConfig;
   client: any;
   store: Store;
 
-  botInstances: { [key: string]: Bot; } = {}; // bot instances which keeps context and etc
+  private config: BotManagerConfig;
+  private mqttState: 'none'|'connecting'|'connected' = 'none';
+  private botInstances: { [key: string]: Bot; } = {}; // bot instances which keeps context and etc
 
-  cluster: Cluster;
-  clusterSyncPubTopic: string;
-  clusterSyncReqPubTopic: string;
-  clusterElectionPubTopic: string;
-  clusterForwardCommandPubTopic: string;
+  private cluster: Cluster;
+  private clusterSyncPubTopic: string;
+  private clusterSyncReqPubTopic: string;
+  private clusterElectionPubTopic: string;
+  private clusterForwardCommandPubTopic: string;
+
+  private intervalBotHealthCheckTimer;
 
   constructor(config: BotManagerConfig, store?: Store) {
     super();
 
-    const self = this;
-
-    const botSecret = config.BOT_GATEWAY_SECRET;
-    const segments = botSecret && botSecret.split('.');
-    const payload = segments && segments[1] && Buffer.from(segments[1], 'base64').toString();
-    const payloadInfo = payload && payload.split(':');
-    const SP_ID = payloadInfo && payloadInfo[2];
-    const APP_ID = payloadInfo && payloadInfo[3];
-    const BOT_ID = payloadInfo && payloadInfo[5];
-
-    const username = BOT_ID;
-    const bootTime: number = Date.now();
-    const bootTimeId: string = (bootTime - 1577836800000).toString(16).split('').reverse().join('');
-    const clusterNodeId: string = (_.isNil(config.BOT_CLUSTER_NODE_ID) ? 'node' : String(config.BOT_CLUSTER_NODE_ID)) + '-' + bootTimeId;
-
     this.config = config;
     this.store = store ? store : new JsonFsStore();
 
-    this.clusterSyncPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`;
-    this.clusterSyncReqPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`;
-    this.clusterElectionPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`;
-    this.clusterForwardCommandPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`;
-    this.cluster = new Cluster(clusterNodeId, bootTime, this.clusterGetBotCount.bind(this), this.clusterSendData.bind(this));
-
-    // connect mqtt
-    this.client = mqtt.connect({
-      protocol: 'wss', // over websocket
-      hostname: config.BOT_GATEWAY_HOST || 'mqtt.gitple.io',
-      port: config.BOT_GATEWAY_PORT || 443,
-      path: '/mogi',
-      clean: true,
-      clientId: `chatbot:${username}-${uuid()}`, //unique id accross chatbot instances
-      username: `${username}`, // any string
-      password: botSecret,
-      connectTimeout: 60 * 1000, // 60 seconds
-      keepalive: 30 // 30 seconds
-    });
-    this.client.once('connect', function (/*options*/) {
-      self.emit('ready');
-      self.recoverBots();
-    });
-    this.client.on('connect', function (/*options*/) {
-      // console.log('[MQTT CLIENT] connect');
-      self.emit('connect');
-      self.cluster.connect();
-    });
-    this.client.on('reconnect', function () {
-      // console.log('[MQTT CLIENT] reconnect');
-      self.emit('reconnect');
-    });
-    this.client.on('close', function () {
-      // console.log('[MQTT CLIENT] close');
-      self.emit('disconnect');
-      self.cluster.disconnect();
-    });
-    // this.client.on('offline', function () {
-    //   // console.log('[MQTT CLIENT] offline');
-    //   // self.emit('offline');
-    // });
-    this.client.on('error', function (err: Error) {
-      // console.log('[MQTT CLIENT] error', err && err.toString());
-      self.emit('error', err && err.toString());
-    });
-
-    // subscribe topics
-    this.client.subscribe([
-      `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/req/t/${BOT_ID}/#`, // bot mgr request
-      `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`, // bot command response
-
-      `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/#`, // 'bot cluster info'
-        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`, // 'bot cluster sync info'
-        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`, // 'bot cluster sync info' request
-        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`, // bot cluster election
-        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`, // bot cluster assign
-    ]);
-
-    // receive mqtt messages
-    this.client.on('message', function (topic: string, payload: any) {
-      payload = payload.toString(); // from buffer to string
-
-      let splitedTopic = topic.split('/');
-      let parsedObj;
-      let message;
-
-      if (topic.indexOf(`s/${SP_ID}/a/${APP_ID}/`) !== 0) {
-        console.error(`'[SKIP], invalid topic: ${topic}`, payload);
-        return;
-      }
-
-      // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`
-      // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`
-      // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`
-      // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`
-      if (splitedTopic.length >= 8 && splitedTopic[4] === 't' && splitedTopic[6] === 'cluster') {
-        try {
-          parsedObj = JSON.parse(payload);
-        } catch (e) { /* do nothing */ }
-
-        if (splitedTopic[7] === 'command') {
-          if (splitedTopic.length === 8) {
-            const forwardCommandInfo: BotClusterForwardCommand = <BotClusterForwardCommand>parsedObj;
-            if (self.cluster.getNodeId() === forwardCommandInfo.targetNodeId) {
-              self.handleBotCommand(BOT_ID, forwardCommandInfo.instanceId, forwardCommandInfo.command);
-            }
-          }
-        } else if (splitedTopic[7] === 'election') {
-          if (splitedTopic.length === 8) {
-            self.cluster.handleMessage('election', <ClusterElection>parsedObj);
-          }
-        } else if (splitedTopic[7] === 'sync') {
-          if (splitedTopic.length === 8) {
-            // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`
-
-            const newSyncInfo: ClusterSendSync = <ClusterSendSync>parsedObj;
-            if (newSyncInfo) {
-              if (newSyncInfo.meta && !_.isNil(newSyncInfo.meta.lastBotInstanceId) && self.cluster.getNodeId() !== newSyncInfo.id) {
-                // Check duplicatedBot
-                const duplicatedBot = self.botInstances[newSyncInfo.meta.lastBotInstanceId];
-
-                if (duplicatedBot) {
-                  if (self.cluster.getNodeBootTime() < newSyncInfo.bootTime) {
-                    self.cluster.sendSyncMeta({ lastBotInstanceId: newSyncInfo.meta.lastBotInstanceId });
-                  } else if (self.cluster.getNodeBootTime() > newSyncInfo.bootTime) {
-                    // remove bot if exists duplicated bot
-                    console.warn('Remove duplicatedBot', newSyncInfo.meta.lastBotInstanceId, self.cluster.getNodeId(), newSyncInfo.id);
-                    duplicatedBot.finalize();
-                  }
-                }
-              }
-
-              self.cluster.handleMessage('sync', newSyncInfo);
-            }
-          } else if (splitedTopic[8] === 'req') {
-            if (splitedTopic.length === 9) {
-              // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`
-              self.cluster.handleMessage('syncReq', null);
-            }
-          }
-        }
-
-      // chatbot manager: process request such as start and end
-      // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${BOT_ID}/#`
-      } else if (splitedTopic.length >= 7 && splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
-        try {
-          parsedObj = jsonrpc.parse(payload);
-          if (parsedObj.type !== 'request') {
-            console.error('Invalid payload: not a req', topic, payload);
-            return;
-          }
-          message = parsedObj.payload;
-        } catch (e) {
-          console.error('Invalid payload', topic, payload);
-          return;
-        }
-
-        //  let spId = splitedTopic[1];
-        //  let appId = splitedTopic[3];
-        //  let botId = splitedTopic[5];
-
-        let context = message.params._context;
-        let roomId = context.room; // room id in the context
-        let sessionId = context.session;
-        let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
-
-        if (message.method === 'start') {
-          if (self.cluster.isLeaderNode()) {
-            const targetNode: ClusterSyncNode = self.cluster.getNodeToAssignJob();
-            if (targetNode && targetNode.type === 'worker') {
-              self.clusterSendForwardCommand(targetNode.id, instanceId, message);
-              return;
-            }
-          } else {
-            // Ignore start command
-            return;
-          }
-        }
-
-        self.handleBotCommand(BOT_ID, instanceId, message);
-
-      // chatbot instance: process response
-      // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`
-      } else if (splitedTopic.length >= 11 &&
-        splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
-
-        try {
-          parsedObj = jsonrpc.parse(payload);
-          message = parsedObj.payload;
-        } catch (e) {
-          console.error('Invalid payload', topic, payload);
-          return;
-        }
-
-        //console.log(`[JSONRPC RESPONSE] gitple --> chatbot : ${topic}`);
-        if (parsedObj.type === 'success') {
-          // console.log('Sucess response', message);
-        } else { // 'error'
-          console.error('Error response', message);
-        }
-        return;
-
-      // chatbot instance: messages from user
-      // BOT_INSTANCE_MSG_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/u/+`
-      } else if (splitedTopic.length >= 9 &&
-        splitedTopic[4] === 'u' && splitedTopic[6] === 'r' &&  splitedTopic[8] === 'u') {
-        //console.log(`[MESSAGE] gitple --> chatbot : ${topic}`);
-        try {
-          parsedObj = JSON.parse(payload);
-        } catch (e) { /* do nothing */ }
-
-        if (parsedObj) {
-          let roomId = splitedTopic[7]; // room id in the topic
-          let sessionId = parsedObj._sid;
-
-          let instanceId = `bot:${roomId}:${sessionId}`;
-          let bot = self.botInstances[instanceId];
-
-          if (bot) {
-            let event = parsedObj.e;
-
-            if (event) {
-              bot.emit('event', event);
-            } else {
-              let message = parsedObj.m;
-              let resCommand = parsedObj.c;
-              let isCommand = false;
-
-              if (!_.isUndefined(resCommand) && !_.isNull(resCommand)) {
-                isCommand = true;
-                message = resCommand;
-              }
-
-              //console.log('<Message text, html or component>', parsedObj.m);
-              bot.emit('message', message, { isUserInput: !isCommand });
-            }
-          } else {
-            //TODO: start new bot instance
-          }
-        }
-      }
-    });
-
-    // timeout event for older than 10 min bot
-    setInterval(() => {
-      let now = _.now();
-      _.each(self.botInstances, (bot: Bot) => {
-        if (now - bot.mtime > BOT_TIMEOUT) {
-          // console.log(`quit Bot (>10min older) bot:${bot.id}`);
-          self.emit('timeout', bot.id);
-        }
-      });
-    }, ONE_MIN_IN_MS);
+    this.start();
   }
 
   private handleBotCommand(botId: string, instanceId: string, message: any) {
@@ -507,11 +263,302 @@ export class BotManager extends events.EventEmitter {
     });
   }
 
+  start() {
+    const self = this;
+
+    if (this.mqttState !== 'none') {
+      console.log('[BotManager] ignore start()', this.mqttState);
+      return;
+    }
+
+    this.mqttState = 'connecting';
+
+    if (this.client) {
+      this.client.reconnect();
+    } else {
+      const config = this.config;
+      const botSecret = config.BOT_GATEWAY_SECRET;
+      const segments = botSecret && botSecret.split('.');
+      const payload = segments && segments[1] && Buffer.from(segments[1], 'base64').toString();
+      const payloadInfo = payload && payload.split(':');
+      const SP_ID = payloadInfo && payloadInfo[2];
+      const APP_ID = payloadInfo && payloadInfo[3];
+      const BOT_ID = payloadInfo && payloadInfo[5];
+
+      const username = BOT_ID;
+      const bootTime: number = Date.now();
+      const bootTimeId: string = (bootTime - 1577836800000).toString(16).split('').reverse().join('');
+      const clusterNodeId: string = (_.isNil(config.BOT_CLUSTER_NODE_ID) ? 'node' : String(config.BOT_CLUSTER_NODE_ID)) + '-' + bootTimeId;
+
+      this.clusterSyncPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`;
+      this.clusterSyncReqPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`;
+      this.clusterElectionPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`;
+      this.clusterForwardCommandPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`;
+      this.cluster = new Cluster(clusterNodeId, bootTime, this.clusterGetBotCount.bind(this), this.clusterSendData.bind(this));
+
+      // connect mqtt
+      this.client = mqtt.connect({
+        protocol: 'wss', // over websocket
+        hostname: config.BOT_GATEWAY_HOST || 'mqtt.gitple.io',
+        port: config.BOT_GATEWAY_PORT || 443,
+        path: '/mogi',
+        clean: true,
+        clientId: `chatbot:${username}-${uuid()}`, //unique id accross chatbot instances
+        username: `${username}`, // any string
+        password: botSecret,
+        connectTimeout: 60 * 1000, // 60 seconds
+        reconnectPeriod: 10 * 1000, // 10 secodes
+        keepalive: 30 // 30 seconds
+      });
+
+      this.client.on('connect', function (/*options*/) {
+        console.log('[MQTT CLIENT] connect');
+        self.mqttState = 'connected';
+        self.emit('connect');
+        self.cluster.connect();
+      });
+      this.client.on('reconnect', function () {
+        console.log('[MQTT CLIENT] reconnect');
+        self.emit('reconnect');
+      });
+      this.client.on('close', function () {
+        console.log('[MQTT CLIENT] close');
+        self.emit('disconnect');
+        self.cluster.disconnect();
+      });
+      // this.client.on('offline', function () {
+      //   // console.log('[MQTT CLIENT] offline');
+      //   // self.emit('offline');
+      // });
+      this.client.on('error', function (err: Error) {
+        // console.log('[MQTT CLIENT] error', err && err.toString());
+        self.emit('error', err && err.toString());
+      });
+
+      // subscribe topics
+      this.client.subscribe([
+        `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/req/t/${BOT_ID}/#`, // bot mgr request
+        `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`, // bot command response
+
+        `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/#`, // 'bot cluster info'
+          // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`, // 'bot cluster sync info'
+          // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`, // 'bot cluster sync info' request
+          // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`, // bot cluster election
+          // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`, // bot cluster assign
+      ]);
+
+      // receive mqtt messages
+      this.client.on('message', function (topic: string, payload: any) {
+        payload = payload.toString(); // from buffer to string
+
+        let splitedTopic = topic.split('/');
+        let parsedObj;
+        let message;
+
+        if (topic.indexOf(`s/${SP_ID}/a/${APP_ID}/`) !== 0) {
+          console.error(`'[SKIP], invalid topic: ${topic}`, payload);
+          return;
+        }
+
+        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`
+        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`
+        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/election`
+        // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/command`
+        if (splitedTopic.length >= 8 && splitedTopic[4] === 't' && splitedTopic[6] === 'cluster') {
+          try {
+            parsedObj = JSON.parse(payload);
+          } catch (e) { /* do nothing */ }
+
+          if (splitedTopic[7] === 'command') {
+            if (splitedTopic.length === 8) {
+              const forwardCommandInfo: BotClusterForwardCommand = <BotClusterForwardCommand>parsedObj;
+              if (self.cluster.getNodeId() === forwardCommandInfo.targetNodeId) {
+                self.handleBotCommand(BOT_ID, forwardCommandInfo.instanceId, forwardCommandInfo.command);
+              }
+            }
+          } else if (splitedTopic[7] === 'election') {
+            if (splitedTopic.length === 8) {
+              self.cluster.handleMessage('election', <ClusterElection>parsedObj);
+            }
+          } else if (splitedTopic[7] === 'sync') {
+            if (splitedTopic.length === 8) {
+              // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`
+
+              const newSyncInfo: ClusterSendSync = <ClusterSendSync>parsedObj;
+              if (newSyncInfo) {
+                if (newSyncInfo.meta && !_.isNil(newSyncInfo.meta.lastBotInstanceId) && self.cluster.getNodeId() !== newSyncInfo.id) {
+                  // Check duplicatedBot
+                  const duplicatedBot = self.botInstances[newSyncInfo.meta.lastBotInstanceId];
+
+                  if (duplicatedBot) {
+                    if (self.cluster.getNodeBootTime() < newSyncInfo.bootTime) {
+                      self.cluster.sendSyncMeta({ lastBotInstanceId: newSyncInfo.meta.lastBotInstanceId });
+                    } else if (self.cluster.getNodeBootTime() > newSyncInfo.bootTime) {
+                      // remove bot if exists duplicated bot
+                      console.warn('Remove duplicatedBot', newSyncInfo.meta.lastBotInstanceId, self.cluster.getNodeId(), newSyncInfo.id);
+                      duplicatedBot.finalize();
+                    }
+                  }
+                }
+
+                self.cluster.handleMessage('sync', newSyncInfo);
+              }
+            } else if (splitedTopic[8] === 'req') {
+              if (splitedTopic.length === 9) {
+                // `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync/req`
+                self.cluster.handleMessage('syncReq', null);
+              }
+            }
+          }
+
+        // chatbot manager: process request such as start and end
+        // BOT_MANAGER_REQ_TOPIC = `s/${SP_ID}/a/${APP_ID}/t/+/req/t/${BOT_ID}/#`
+        } else if (splitedTopic.length >= 7 && splitedTopic[4] === 't' && splitedTopic[6] === 'req') {
+          try {
+            parsedObj = jsonrpc.parse(payload);
+            if (parsedObj.type !== 'request') {
+              console.error('Invalid payload: not a req', topic, payload);
+              return;
+            }
+            message = parsedObj.payload;
+          } catch (e) {
+            console.error('Invalid payload', topic, payload);
+            return;
+          }
+
+          //  let spId = splitedTopic[1];
+          //  let appId = splitedTopic[3];
+          //  let botId = splitedTopic[5];
+
+          let context = message.params._context;
+          let roomId = context.room; // room id in the context
+          let sessionId = context.session;
+          let instanceId = `bot:${roomId}:${sessionId}`; // new chatbot instance per room id
+
+          if (message.method === 'start') {
+            if (self.cluster.isLeaderNode()) {
+              const targetNode: ClusterSyncNode = self.cluster.getNodeToAssignJob();
+              if (targetNode && targetNode.type === 'worker') {
+                self.clusterSendForwardCommand(targetNode.id, instanceId, message);
+                return;
+              }
+            } else {
+              // Ignore start command
+              return;
+            }
+          }
+
+          self.handleBotCommand(BOT_ID, instanceId, message);
+
+        // chatbot instance: process response
+        // BOT_INSTANCE_RES_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/res/t/${BOT_ID}/#`
+        } else if (splitedTopic.length >= 11 &&
+          splitedTopic[4] === 'u' && splitedTopic[6] === 'r' && splitedTopic[8] === 'res') {
+
+          try {
+            parsedObj = jsonrpc.parse(payload);
+            message = parsedObj.payload;
+          } catch (e) {
+            console.error('Invalid payload', topic, payload);
+            return;
+          }
+
+          //console.log(`[JSONRPC RESPONSE] gitple --> chatbot : ${topic}`);
+          if (parsedObj.type === 'success') {
+            // console.log('Sucess response', message);
+          } else { // 'error'
+            console.error('Error response', message);
+          }
+          return;
+
+        // chatbot instance: messages from user
+        // BOT_INSTANCE_MSG_TOPIC = `s/${SP_ID}/a/${APP_ID}/u/+/r/+/u/+`
+        } else if (splitedTopic.length >= 9 &&
+          splitedTopic[4] === 'u' && splitedTopic[6] === 'r' &&  splitedTopic[8] === 'u') {
+          //console.log(`[MESSAGE] gitple --> chatbot : ${topic}`);
+          try {
+            parsedObj = JSON.parse(payload);
+          } catch (e) { /* do nothing */ }
+
+          if (parsedObj) {
+            let roomId = splitedTopic[7]; // room id in the topic
+            let sessionId = parsedObj._sid;
+
+            let instanceId = `bot:${roomId}:${sessionId}`;
+            let bot = self.botInstances[instanceId];
+
+            if (bot) {
+              let event = parsedObj.e;
+
+              if (event) {
+                bot.emit('event', event);
+              } else {
+                let message = parsedObj.m;
+                let resCommand = parsedObj.c;
+                let isCommand = false;
+
+                if (!_.isUndefined(resCommand) && !_.isNull(resCommand)) {
+                  isCommand = true;
+                  message = resCommand;
+                }
+
+                //console.log('<Message text, html or component>', parsedObj.m);
+                bot.emit('message', message, { isUserInput: !isCommand });
+              }
+            } else {
+              //TODO: start new bot instance
+            }
+          }
+        }
+      });
+    }
+
+    this.client.once('connect', function (/*options*/) {
+      self.emit('ready');
+      self.recoverBots();
+    });
+
+    // timeout event for older than 10 min bot
+    if (this.intervalBotHealthCheckTimer) {
+      clearInterval(this.intervalBotHealthCheckTimer);
+      this.intervalBotHealthCheckTimer = null;
+    }
+
+    this.intervalBotHealthCheckTimer = setInterval(() => {
+      let now = _.now();
+      _.each(self.botInstances, (bot: Bot) => {
+        if (now - bot.mtime > BOT_TIMEOUT) {
+          // console.log(`quit Bot (>10min older) bot:${bot.id}`);
+          self.emit('timeout', bot.id);
+        }
+      });
+    }, ONE_MIN_IN_MS);
+  }
+
   finalize(cb: Function) {
+    if (this.intervalBotHealthCheckTimer) {
+      clearInterval(this.intervalBotHealthCheckTimer);
+      this.intervalBotHealthCheckTimer = null;
+    }
+
+    _.each(this.getAllBots(), (bot: Bot) => {
+      // bot.sendCommand('botEnd'); // request to end bot
+      bot.finalize();
+    });
+
     this.cluster.removeNode();
 
     setTimeout(() => {
-      return cb && cb();
+      this.cluster.finalize();
+
+      if (this.mqttState === 'none') {
+        return cb && cb();
+      } else {
+        this.mqttState = 'none';
+        this.client.end(true, () => {
+          return cb && cb();
+        });
+      }
     }, 100);
   }
 
@@ -674,7 +721,7 @@ export class Bot extends events.EventEmitter {
     let self = this;
     let store = self.botManager.store;
 
-    if (!store) { return; }
+    if (!store) { return cb && cb();; }
 
     store.add(self.id, {
       config: self.config,
@@ -684,7 +731,7 @@ export class Bot extends events.EventEmitter {
       if (err) {
         console.error('[Bot.saveStore] add error', err);
       } else {
-        // console.log('[Bot.saveStore] add', self.id);
+        console.log('[Bot.saveStore] add', self.id);
       }
       return cb && cb(err);
     });

@@ -1,4 +1,4 @@
-import { Cluster } from './cluster';
+/// <reference types="node" />
 import events = require('events');
 export interface Store {
     add(key: string, obj: Object, cb?: (err: Error) => void): any;
@@ -36,25 +36,26 @@ export interface BotCommandTransferToBotParams {
     id: number | string;
 }
 export declare class BotManager extends events.EventEmitter {
-    config: BotManagerConfig;
     client: any;
     store: Store;
-    botInstances: {
-        [key: string]: Bot;
-    };
-    cluster: Cluster;
-    clusterSyncPubTopic: string;
-    clusterSyncReqPubTopic: string;
-    clusterElectionPubTopic: string;
-    clusterForwardCommandPubTopic: string;
+    private config;
+    private mqttState;
+    private botInstances;
+    private cluster;
+    private clusterSyncPubTopic;
+    private clusterSyncReqPubTopic;
+    private clusterElectionPubTopic;
+    private clusterForwardCommandPubTopic;
+    private intervalBotHealthCheckTimer;
     constructor(config: BotManagerConfig, store?: Store);
-    private handleBotCommand;
-    private mqttPublish;
-    private clusterGetBotCount;
-    private clusterSendData;
+    private handleBotCommand(botId, instanceId, message);
+    private mqttPublish(topic, message, cb?);
+    private clusterGetBotCount();
+    private clusterSendData(type, data, cb?);
     clusterSendForwardCommand(targetNodeId: string, instanceId: string, command: any): void;
-    private removeBotState;
-    private recoverBots;
+    private removeBotState(id);
+    private recoverBots(cb?);
+    start(): void;
     finalize(cb: Function): void;
     addBot(bot: Bot): void;
     removeBot(bot: Bot): void;
@@ -77,6 +78,6 @@ export declare class Bot extends events.EventEmitter {
     sendMessage(mqttMessage: any, options?: any, cb?: (err: Error) => void): void;
     sendKeyInEvent(cb?: (err?: Error) => void): void;
     sendCommand(command: 'botEnd' | 'transferToAgent' | 'transferToBot', options?: ((err?: Error) => void) | BotCommandTransferToBotParams, cb?: (err?: Error) => void): void;
-    saveState(cb?: any): void;
+    saveState(cb?: any): any;
     deleteState(): void;
 }

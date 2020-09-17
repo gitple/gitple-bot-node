@@ -10,7 +10,7 @@ const CLUSTER_SYNC_TTL = CLUSTER_SYNC_CYCLE + 2000; // 17sec
 const CLUSTER_ELECTION_CYCLE = 60 * 1000; // 1min
 
 export type ClusterMessageType = 'sync'|'syncReq'|'election';
-type ClusterSendCB = (type: ClusterMessageType, data: any, cb?: (err?: Error) => void) => void;
+export type ClusterSendCB = (type: ClusterMessageType, data: any, cb?: (err?: Error) => void) => void;
 
 interface ClusterSyncReq {
   id: string; // nodeId of sender
@@ -42,6 +42,7 @@ export class Cluster {
   private sync: { nodeInfo: { [key: string]: ClusterSyncNode; }; sendTimer: NodeJS.Timer; electionTimer: NodeJS.Timer; };
   private election: { leaderId: string|null; workerIds: string[]; };
   private callback: { send: ClusterSendCB; getJobCount: () => number; };
+  private intervalElectionTimer;
 
   constructor(nodeId: string, bootTime: number, getJobCount: () => number, send: ClusterSendCB) {
     this.myNode = {
@@ -60,15 +61,43 @@ export class Cluster {
     };
 
     this.reset();
+  }
 
-    setInterval(() => {
+  finalize() {
+    this.reset(true);
+  }
+
+  private start() {
+    if (this.intervalElectionTimer) {
+      clearInterval(this.intervalElectionTimer);
+      this.intervalElectionTimer = null;
+    }
+
+    this.intervalElectionTimer = setInterval(() => {
       if (this.myNode.isLeader) {
         this.sendLeaderElection(this.myNode.id);
       }
     }, CLUSTER_ELECTION_CYCLE);
   }
 
-  private reset() {
+  private reset(isStopTimer: boolean = false) {
+    if (isStopTimer) {
+      if (this.intervalElectionTimer) {
+        clearInterval(this.intervalElectionTimer);
+        this.intervalElectionTimer = null;
+      }
+
+      if (this.sync.electionTimer) {
+        clearTimeout(this.sync.electionTimer);
+        this.sync.electionTimer = null;
+      }
+
+      if (this.sync.sendTimer) {
+        clearTimeout(this.sync.sendTimer);
+        this.sync.sendTimer = null;
+      }
+    }
+
     this.myNode.isLeader = null;
     this.sync.nodeInfo = {};
     this.election = {
@@ -333,10 +362,11 @@ export class Cluster {
   }
 
   connect() {
+    this.start();
     this.sendSyncReq();
   }
 
   disconnect() {
-    this.reset();
+    this.reset(true);
   }
 }

@@ -24,13 +24,36 @@ class Cluster {
             getJobCount: getJobCount
         };
         this.reset();
-        setInterval(() => {
+    }
+    finalize() {
+        this.reset(true);
+    }
+    start() {
+        if (this.intervalElectionTimer) {
+            clearInterval(this.intervalElectionTimer);
+            this.intervalElectionTimer = null;
+        }
+        this.intervalElectionTimer = setInterval(() => {
             if (this.myNode.isLeader) {
                 this.sendLeaderElection(this.myNode.id);
             }
         }, CLUSTER_ELECTION_CYCLE);
     }
-    reset() {
+    reset(isStopTimer = false) {
+        if (isStopTimer) {
+            if (this.intervalElectionTimer) {
+                clearInterval(this.intervalElectionTimer);
+                this.intervalElectionTimer = null;
+            }
+            if (this.sync.electionTimer) {
+                clearTimeout(this.sync.electionTimer);
+                this.sync.electionTimer = null;
+            }
+            if (this.sync.sendTimer) {
+                clearTimeout(this.sync.sendTimer);
+                this.sync.sendTimer = null;
+            }
+        }
         this.myNode.isLeader = null;
         this.sync.nodeInfo = {};
         this.election = {
@@ -228,7 +251,7 @@ class Cluster {
                     if (this.myNode.isLeader) {
                         //Do Nothing
                     }
-                    else { // if Worker
+                    else {
                         needNewClusterSyncInfo = true;
                         this.reset();
                     }
@@ -237,7 +260,7 @@ class Cluster {
                     if (this.myNode.isLeader) {
                         needNewClusterSyncInfo = true;
                     }
-                    else { // if Worker
+                    else {
                         if (this.election.leaderId !== newClusterElectionInfo.leaderId) {
                             needNewClusterSyncInfo = true;
                             this.reset();
@@ -261,10 +284,11 @@ class Cluster {
         return this.myNode.isLeader;
     }
     connect() {
+        this.start();
         this.sendSyncReq();
     }
     disconnect() {
-        this.reset();
+        this.reset(true);
     }
 }
 exports.Cluster = Cluster;
