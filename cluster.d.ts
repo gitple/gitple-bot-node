@@ -42,6 +42,7 @@ export declare class Cluster {
     removeNode(): void;
     getNodeToAssignJob(): ClusterSyncNode;
     handleMessage(type: ClusterMessageType, data: ClusterSendSync | ClusterElection | null): void;
+    setNodeBootTime(bootTime: number): void;
     getNodeBootTime(): number;
     getNodeId(): string;
     isLeaderNode(): boolean;

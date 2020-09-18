@@ -264,16 +264,18 @@ export class BotManager extends events.EventEmitter {
   }
 
   start() {
-    const self = this;
-
     if (this.mqttState !== 'none') {
       console.log('[BotManager] ignore start()', this.mqttState);
       return;
     }
 
+    const self = this;
+    const bootTime: number = Date.now();
+
     this.mqttState = 'connecting';
 
     if (this.client) {
+      this.cluster.setNodeBootTime(bootTime);
       this.client.reconnect();
     } else {
       const config = this.config;
@@ -286,7 +288,6 @@ export class BotManager extends events.EventEmitter {
       const BOT_ID = payloadInfo && payloadInfo[5];
 
       const username = BOT_ID;
-      const bootTime: number = Date.now();
       const bootTimeId: string = (bootTime - 1577836800000).toString(16).split('').reverse().join('');
       const clusterNodeId: string = (_.isNil(config.BOT_CLUSTER_NODE_ID) ? 'node' : String(config.BOT_CLUSTER_NODE_ID)) + '-' + bootTimeId;
 

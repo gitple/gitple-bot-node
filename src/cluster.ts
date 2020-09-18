@@ -200,7 +200,7 @@ export class Cluster {
           const metaInfo: string = (preLeaderId === this.election.leaderId) ? ('─────' + mine) : (mine + '[New]');
           const jobCount: number = clusterLeader.jobCount;
           const bootTime: string = new Date(clusterLeader.bootTime).toISOString();
-          console.log(`     └──${metaInfo} [${clusterLeader.id}]-JotCount[${jobCount}]-BootTime[${bootTime}]`);
+          console.log(`     └──${metaInfo} [${clusterLeader.id}]-JotCount[${jobCount}]-StartTime[${bootTime}]`);
         }
 
         console.log(`◇ [WorkerNodes:${_.size(clusterWorks)}]`);
@@ -213,7 +213,7 @@ export class Cluster {
             const metaInfo: string = (_.indexOf(preWorkerIds, work.id) >= 0) ? ('─────' + mine) : (mine + '[New]');
             const jobCount: number = work.jobCount;
             const bootTime: string = new Date(work.bootTime).toISOString();
-            console.log(`     └──${metaInfo} [${work.id}]-JotCount[${jobCount}]-BootTime[${bootTime}]`);
+            console.log(`     └──${metaInfo} [${work.id}]-JotCount[${jobCount}]-StartTime[${bootTime}]`);
           });
         }
 
@@ -347,6 +347,10 @@ export class Cluster {
         }
       }
     }
+  }
+
+  setNodeBootTime(bootTime: number) {
+    this.myNode.bootTime = bootTime;
   }
 
   getNodeBootTime(): number {

@@ -198,13 +198,15 @@ class BotManager extends events.EventEmitter {
         });
     }
     start() {
-        const self = this;
         if (this.mqttState !== 'none') {
             console.log('[BotManager] ignore start()', this.mqttState);
             return;
         }
+        const self = this;
+        const bootTime = Date.now();
         this.mqttState = 'connecting';
         if (this.client) {
+            this.cluster.setNodeBootTime(bootTime);
             this.client.reconnect();
         }
         else {
@@ -217,7 +219,6 @@ class BotManager extends events.EventEmitter {
             const APP_ID = payloadInfo && payloadInfo[3];
             const BOT_ID = payloadInfo && payloadInfo[5];
             const username = BOT_ID;
-            const bootTime = Date.now();
             const bootTimeId = (bootTime - 1577836800000).toString(16).split('').reverse().join('');
             const clusterNodeId = (_.isNil(config.BOT_CLUSTER_NODE_ID) ? 'node' : String(config.BOT_CLUSTER_NODE_ID)) + '-' + bootTimeId;
             this.clusterSyncPubTopic = `s/${SP_ID}/a/${APP_ID}/t/${BOT_ID}/cluster/sync`;
