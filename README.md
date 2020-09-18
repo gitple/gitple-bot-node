@@ -99,6 +99,16 @@ botMgr.on('start', (botConfig, cb) => {
 });
 ```
 
+This example is to stop the bot manager and then restart the bot manager after 1 second.
+
+```js
+  botMgr.finalize(() => {
+    setTimeout(() => {
+      botMgr.start();
+    }, 1 * 1000)
+  });
+```
+
 ## How to add your bot link to FAQ answer.
 
 You can put the following html code into your FAQ answer after replacing your bot id with `_ID_`:
